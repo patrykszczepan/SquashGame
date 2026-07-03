@@ -1,18 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Building2 } from "lucide-react"
+import { registerCenter } from "./actions"
 
 export default function RegisterCenterPage() {
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [form, setForm] = useState({
@@ -35,51 +33,12 @@ export default function RegisterCenterPage() {
     setError("")
     setLoading(true)
 
-    const supabase = createClient()
+    const result = await registerCenter(form)
 
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-    })
-
-    if (signUpError || !data.user) {
-      setError(signUpError?.message ?? "Błąd rejestracji.")
+    if (result?.error) {
+      setError(result.error)
       setLoading(false)
-      return
     }
-
-    const userId = data.user.id
-
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .insert({ id: userId, role: "center" })
-
-    if (profileError) {
-      setError("Błąd tworzenia profilu.")
-      setLoading(false)
-      return
-    }
-
-    const { error: centerError } = await supabase
-      .from("centers")
-      .insert({
-        profile_id: userId,
-        name: form.name,
-        address: form.address || null,
-        postal_code: form.postal_code || null,
-        city: form.city || null,
-        phone: form.phone || null,
-        nip: form.nip || null,
-      })
-
-    if (centerError) {
-      setError("Błąd tworzenia centrum.")
-      setLoading(false)
-      return
-    }
-
-    router.push("/dashboard")
-    router.refresh()
   }
 
   return (

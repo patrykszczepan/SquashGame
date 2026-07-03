@@ -1,9 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,6 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { User } from "lucide-react"
+import { registerPlayer } from "./actions"
 
 const SKILL_LEVELS = [
   { value: "beginner", label: "Początkujący" },
@@ -19,7 +18,6 @@ const SKILL_LEVELS = [
 ]
 
 export default function RegisterPlayerPage() {
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [form, setForm] = useState({
@@ -40,49 +38,12 @@ export default function RegisterPlayerPage() {
     setError("")
     setLoading(true)
 
-    const supabase = createClient()
+    const result = await registerPlayer(form)
 
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-    })
-
-    if (signUpError || !data.user) {
-      setError(signUpError?.message ?? "Błąd rejestracji.")
+    if (result?.error) {
+      setError(result.error)
       setLoading(false)
-      return
     }
-
-    const userId = data.user.id
-
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .insert({ id: userId, role: "player" })
-
-    if (profileError) {
-      setError("Błąd tworzenia profilu.")
-      setLoading(false)
-      return
-    }
-
-    const { error: playerError } = await supabase
-      .from("players")
-      .insert({
-        profile_id: userId,
-        first_name: form.first_name,
-        last_name: form.last_name,
-        phone: form.phone || null,
-        skill_level: form.skill_level,
-      })
-
-    if (playerError) {
-      setError("Błąd tworzenia profilu zawodnika.")
-      setLoading(false)
-      return
-    }
-
-    router.push("/dashboard")
-    router.refresh()
   }
 
   return (

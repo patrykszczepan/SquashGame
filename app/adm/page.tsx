@@ -1,17 +1,15 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ShieldCheck } from "lucide-react"
+import { adminLogin } from "./actions"
 
 export default function AdminLoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -22,31 +20,12 @@ export default function AdminLoginPage() {
     setError("")
     setLoading(true)
 
-    const supabase = createClient()
+    const result = await adminLogin({ email, password })
 
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-
-    if (signInError || !data.user) {
-      setError("Nieprawidłowy email lub hasło.")
+    if (result?.error) {
+      setError(result.error)
       setLoading(false)
-      return
     }
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", data.user.id)
-      .single()
-
-    if (profile?.role !== "admin") {
-      await supabase.auth.signOut()
-      setError("Brak uprawnień administratora.")
-      setLoading(false)
-      return
-    }
-
-    router.push("/dashboard/admin")
-    router.refresh()
   }
 
   return (

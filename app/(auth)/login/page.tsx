@@ -1,17 +1,15 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { loginAction } from "./actions"
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -22,17 +20,12 @@ export default function LoginPage() {
     setError("")
     setLoading(true)
 
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const result = await loginAction({ email, password })
 
-    if (error) {
-      setError("Nieprawidłowy email lub hasło.")
+    if (result?.error) {
+      setError(result.error)
       setLoading(false)
-      return
     }
-
-    router.push("/dashboard")
-    router.refresh()
   }
 
   return (
