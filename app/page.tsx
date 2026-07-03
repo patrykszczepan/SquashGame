@@ -1,19 +1,38 @@
-import { Button } from "@/components/ui/button"
+import { AppSidebar } from "@/components/app-sidebar"
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar"
+import { Separator } from "@/components/ui/separator"
 
 export default function Page() {
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-        <div className="font-mono text-xs text-muted-foreground">
-          (Press <kbd>d</kbd> to toggle dark mode)
-        </div>
-      </div>
-    </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex h-16 items-center gap-2 border-b px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <h1 className="font-semibold">Dashboard</h1>
+        </header>
+        <main className="flex flex-1 flex-col gap-4 p-4">
+          <div className="grid auto-rows-min gap-4 md:grid-cols-3">
+            <div className="bg-muted/50 rounded-xl aspect-video flex items-center justify-center text-muted-foreground text-sm">
+              Nadchodzące mecze
+            </div>
+            <div className="bg-muted/50 rounded-xl aspect-video flex items-center justify-center text-muted-foreground text-sm">
+              Ranking
+            </div>
+            <div className="bg-muted/50 rounded-xl aspect-video flex items-center justify-center text-muted-foreground text-sm">
+              Statystyki
+            </div>
+          </div>
+          <div className="bg-muted/50 rounded-xl min-h-[60vh] flex items-center justify-center text-muted-foreground text-sm">
+            Główna treść
+          </div>
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }
