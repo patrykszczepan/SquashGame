@@ -14,7 +14,7 @@ export default function RegisterPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Link href="/register/center">
             <Card className="h-full cursor-pointer transition-colors hover:border-primary hover:bg-accent">
-              <CardHeader className="items-center text-center pb-2">
+              <CardHeader className="flex flex-col items-center text-center pb-2">
                 <div className="rounded-full bg-primary/10 p-4 mb-2">
                   <Building2 className="h-8 w-8 text-primary" />
                 </div>
@@ -31,7 +31,7 @@ export default function RegisterPage() {
 
           <Link href="/register/player">
             <Card className="h-full cursor-pointer transition-colors hover:border-primary hover:bg-accent">
-              <CardHeader className="items-center text-center pb-2">
+              <CardHeader className="flex flex-col items-center text-center pb-2">
                 <div className="rounded-full bg-primary/10 p-4 mb-2">
                   <User className="h-8 w-8 text-primary" />
                 </div>
