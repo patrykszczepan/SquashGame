@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { User } from "lucide-react"
 
 const SKILL_LEVELS = [
@@ -125,33 +126,31 @@ export default function RegisterPlayerPage() {
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Poziom gry</Label>
-              <div className="flex flex-col gap-2">
-                {SKILL_LEVELS.map((level) => (
-                  <button
-                    key={level.value}
-                    type="button"
-                    onClick={() => set("skill_level", level.value)}
-                    className={`rounded-md border px-3 py-2 text-sm text-left transition-colors ${
-                      form.skill_level === level.value
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-input hover:bg-accent"
-                    }`}
-                  >
-                    {level.label}
-                  </button>
-                ))}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="phone">Telefon</Label>
+                <Input
+                  id="phone"
+                  placeholder="+48 123 456 789"
+                  value={form.phone}
+                  onChange={(e) => set("phone", e.target.value)}
+                />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Telefon</Label>
-              <Input
-                id="phone"
-                placeholder="+48 123 456 789"
-                value={form.phone}
-                onChange={(e) => set("phone", e.target.value)}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="skill_level">Poziom gry</Label>
+                <Select value={form.skill_level} onValueChange={(v) => set("skill_level", v)}>
+                  <SelectTrigger id="skill_level" className="w-full">
+                    <SelectValue placeholder="Wybierz poziom" />
+                  </SelectTrigger>
+                  <SelectContent className="w-[--radix-select-trigger-width]">
+                    {SKILL_LEVELS.map((level) => (
+                      <SelectItem key={level.value} value={level.value}>
+                        {level.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="border-t pt-4 space-y-4">
               <div className="space-y-2">
