@@ -1,8 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr"
-
-function cleanEnv(value: string): string {
-  return value.replace(/﻿/g, "").trim()
-}
+import { cleanEnv } from "./utils"
 
 export function createClient() {
   return createBrowserClient(
