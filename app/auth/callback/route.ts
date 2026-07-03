@@ -6,6 +6,7 @@ import { cleanEnv } from "@/lib/supabase/utils"
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get("code")
+  const type = searchParams.get("type") // "player" | "center" | null
 
   if (!code) {
     return NextResponse.redirect(new URL("/login?error=no_code", origin))
@@ -42,9 +43,16 @@ export async function GET(request: NextRequest) {
     .eq("id", data.user.id)
     .single()
 
-  if (!profile) {
-    return NextResponse.redirect(new URL("/register/select-role", origin))
+  if (profile) {
+    return NextResponse.redirect(new URL("/dashboard", origin))
   }
 
-  return NextResponse.redirect(new URL("/dashboard", origin))
+  if (type === "player") {
+    return NextResponse.redirect(new URL("/onboarding/player", origin))
+  }
+  if (type === "center") {
+    return NextResponse.redirect(new URL("/onboarding/center", origin))
+  }
+
+  return NextResponse.redirect(new URL("/register/select-role", origin))
 }
