@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation"
+import { headers } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
@@ -16,7 +17,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .eq("id", user.id)
     .single()
 
-  const role = profile?.role as "center" | "player" | undefined
+  const role = profile?.role as "center" | "player" | "admin" | undefined
+
+  const headersList = await headers()
+  const pathname = headersList.get("x-invoke-path") ?? headersList.get("next-url") ?? ""
+
+  if (role !== "admin" && pathname.includes("/dashboard/admin")) {
+    redirect("/dashboard")
+  }
 
   let displayName = user.email ?? ""
   if (role === "center") {
@@ -33,6 +41,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
       .eq("profile_id", user.id)
       .single()
     if (player) displayName = `${player.first_name} ${player.last_name}`
+  } else if (role === "admin") {
+    displayName = "Administrator"
   }
 
   return (

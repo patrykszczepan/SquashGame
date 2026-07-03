@@ -50,15 +50,24 @@ const playerNav = [
   { title: "Ustawienia", icon: Settings, url: "/dashboard/player/settings" },
 ]
 
+const adminNav = [
+  { title: "Dashboard", icon: LayoutDashboard, url: "/dashboard/admin" },
+  { title: "Centra squash", icon: Building2, url: "/dashboard/admin/centers" },
+  { title: "Zawodnicy", icon: Users, url: "/dashboard/admin/players" },
+  { title: "Turnieje", icon: Trophy, url: "/dashboard/admin/tournaments" },
+  { title: "Statystyki", icon: BarChart3, url: "/dashboard/admin/stats" },
+  { title: "Ustawienia", icon: Settings, url: "/dashboard/admin/settings" },
+]
+
 interface AppSidebarProps {
-  role?: "center" | "player"
+  role?: "center" | "player" | "admin"
   displayName: string
   email: string
 }
 
 export function AppSidebar({ role, displayName, email }: AppSidebarProps) {
   const router = useRouter()
-  const navItems = role === "center" ? centerNav : playerNav
+  const navItems = role === "admin" ? adminNav : role === "center" ? centerNav : playerNav
   const initials = displayName
     .split(" ")
     .map((w) => w[0])
