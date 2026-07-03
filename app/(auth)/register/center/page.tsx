@@ -19,8 +19,11 @@ export default function RegisterCenterPage() {
     email: "",
     password: "",
     name: "",
+    address: "",
+    postal_code: "",
     city: "",
     phone: "",
+    nip: "",
   })
 
   function set(field: string, value: string) {
@@ -62,8 +65,11 @@ export default function RegisterCenterPage() {
       .insert({
         profile_id: userId,
         name: form.name,
-        city: form.city,
-        phone: form.phone,
+        address: form.address || null,
+        postal_code: form.postal_code || null,
+        city: form.city || null,
+        phone: form.phone || null,
+        nip: form.nip || null,
       })
 
     if (centerError) {
@@ -78,15 +84,15 @@ export default function RegisterCenterPage() {
 
   return (
     <div className="flex min-h-svh items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-2">
-            <div className="rounded-full bg-primary/10 p-3">
-              <Building2 className="h-6 w-6 text-primary" />
+      <Card className="w-full max-w-md overflow-hidden pt-0">
+        <CardHeader className="text-center bg-primary/5 border-b py-8">
+          <div className="flex justify-center mb-3">
+            <div className="rounded-full bg-primary/15 p-4">
+              <Building2 className="h-7 w-7 text-primary" />
             </div>
           </div>
           <CardTitle className="text-2xl">Rejestracja centrum</CardTitle>
-          <CardDescription>Wypełnij dane swojego centrum squash</CardDescription>
+          <CardDescription className="mt-1">Wypełnij dane swojego centrum squash</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
@@ -105,7 +111,25 @@ export default function RegisterCenterPage() {
                 required
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="address">Adres</Label>
+              <Input
+                id="address"
+                placeholder="ul. Przykładowa 1"
+                value={form.address}
+                onChange={(e) => set("address", e.target.value)}
+              />
+            </div>
             <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="postal_code">Kod pocztowy</Label>
+                <Input
+                  id="postal_code"
+                  placeholder="20-001"
+                  value={form.postal_code}
+                  onChange={(e) => set("postal_code", e.target.value)}
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="city">Miasto</Label>
                 <Input
@@ -115,6 +139,8 @@ export default function RegisterCenterPage() {
                   onChange={(e) => set("city", e.target.value)}
                 />
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="phone">Telefon</Label>
                 <Input
@@ -122,6 +148,18 @@ export default function RegisterCenterPage() {
                   placeholder="+48 123 456 789"
                   value={form.phone}
                   onChange={(e) => set("phone", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="nip">
+                  NIP{" "}
+                  <span className="text-xs text-muted-foreground">(opcjonalny)</span>
+                </Label>
+                <Input
+                  id="nip"
+                  placeholder="1234567890"
+                  value={form.nip}
+                  onChange={(e) => set("nip", e.target.value)}
                 />
               </div>
             </div>
@@ -151,7 +189,7 @@ export default function RegisterCenterPage() {
               </div>
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col gap-3">
+          <CardFooter className="flex flex-col gap-3 pt-6">
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Rejestracja..." : "Załóż konto centrum"}
             </Button>

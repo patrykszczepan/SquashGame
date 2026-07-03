@@ -13,7 +13,7 @@ import { User } from "lucide-react"
 
 const SKILL_LEVELS = [
   { value: "beginner", label: "Początkujący" },
-  { value: "intermediate", label: "Średniozaawansowany" },
+  { value: "intermediate", label: "Średni" },
   { value: "advanced", label: "Zaawansowany" },
 ]
 
@@ -26,6 +26,7 @@ export default function RegisterPlayerPage() {
     password: "",
     first_name: "",
     last_name: "",
+    phone: "",
     skill_level: "beginner",
   })
 
@@ -69,6 +70,7 @@ export default function RegisterPlayerPage() {
         profile_id: userId,
         first_name: form.first_name,
         last_name: form.last_name,
+        phone: form.phone || null,
         skill_level: form.skill_level,
       })
 
@@ -84,15 +86,15 @@ export default function RegisterPlayerPage() {
 
   return (
     <div className="flex min-h-svh items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-2">
-            <div className="rounded-full bg-primary/10 p-3">
-              <User className="h-6 w-6 text-primary" />
+      <Card className="w-full max-w-md overflow-hidden pt-0">
+        <CardHeader className="text-center bg-primary/5 border-b py-8">
+          <div className="flex justify-center mb-3">
+            <div className="rounded-full bg-primary/15 p-4">
+              <User className="h-7 w-7 text-primary" />
             </div>
           </div>
           <CardTitle className="text-2xl">Rejestracja zawodnika</CardTitle>
-          <CardDescription>Wypełnij swoje dane</CardDescription>
+          <CardDescription className="mt-1">Wypełnij swoje dane</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
@@ -125,13 +127,13 @@ export default function RegisterPlayerPage() {
             </div>
             <div className="space-y-2">
               <Label>Poziom gry</Label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="flex flex-col gap-2">
                 {SKILL_LEVELS.map((level) => (
                   <button
                     key={level.value}
                     type="button"
                     onClick={() => set("skill_level", level.value)}
-                    className={`rounded-md border px-3 py-2 text-sm transition-colors ${
+                    className={`rounded-md border px-3 py-2 text-sm text-left transition-colors ${
                       form.skill_level === level.value
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-input hover:bg-accent"
@@ -141,6 +143,15 @@ export default function RegisterPlayerPage() {
                   </button>
                 ))}
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Telefon</Label>
+              <Input
+                id="phone"
+                placeholder="+48 123 456 789"
+                value={form.phone}
+                onChange={(e) => set("phone", e.target.value)}
+              />
             </div>
             <div className="border-t pt-4 space-y-4">
               <div className="space-y-2">
@@ -168,7 +179,7 @@ export default function RegisterPlayerPage() {
               </div>
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col gap-3">
+          <CardFooter className="flex flex-col gap-3 pt-6">
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Rejestracja..." : "Załóż konto zawodnika"}
             </Button>
