@@ -2,15 +2,15 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ShieldCheck } from "lucide-react"
 
-export default function LoginPage() {
+export default function AdminLoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -23,27 +23,48 @@ export default function LoginPage() {
     setLoading(true)
 
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
 
-    if (error) {
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+
+    if (signInError || !data.user) {
       setError("Nieprawidłowy email lub hasło.")
       setLoading(false)
       return
     }
 
-    router.push("/dashboard")
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", data.user.id)
+      .single()
+
+    if (profile?.role !== "admin") {
+      await supabase.auth.signOut()
+      setError("Brak uprawnień administratora.")
+      setLoading(false)
+      return
+    }
+
+    router.push("/dashboard/admin")
     router.refresh()
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center p-4">
+    <div className="flex min-h-svh items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-sm overflow-hidden pt-0">
-        <CardHeader className="text-center bg-primary/5 border-b py-8">
-          <CardTitle className="text-2xl">Zaloguj się</CardTitle>
-          <CardDescription className="mt-1">Wpisz swoje dane logowania</CardDescription>
+        <CardHeader className="text-center bg-foreground text-background py-8">
+          <div className="flex justify-center mb-3">
+            <div className="rounded-full bg-background/10 p-4">
+              <ShieldCheck className="h-7 w-7 text-background" />
+            </div>
+          </div>
+          <CardTitle className="text-2xl text-background">Panel administratora</CardTitle>
+          <CardDescription className="mt-1 text-background/60">
+            Dostęp tylko dla administratorów
+          </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-6">
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
@@ -54,7 +75,7 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="twoj@email.pl"
+                placeholder="admin@email.pl"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -71,16 +92,10 @@ export default function LoginPage() {
               />
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col gap-3 pt-6">
+          <CardFooter className="pt-6">
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Logowanie..." : "Zaloguj się"}
+              {loading ? "Weryfikacja..." : "Zaloguj się"}
             </Button>
-            <p className="text-sm text-muted-foreground text-center">
-              Nie masz konta?{" "}
-              <Link href="/register" className="underline underline-offset-4 hover:text-foreground">
-                Zarejestruj się
-              </Link>
-            </p>
           </CardFooter>
         </form>
       </Card>

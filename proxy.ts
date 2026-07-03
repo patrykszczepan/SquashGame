@@ -25,9 +25,10 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const isAuthRoute = request.nextUrl.pathname.startsWith("/login") ||
-    request.nextUrl.pathname.startsWith("/register")
-  const isDashboard = request.nextUrl.pathname.startsWith("/dashboard")
+  const pathname = request.nextUrl.pathname
+  const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/register")
+  const isAdminLoginRoute = pathname === "/adm"
+  const isDashboard = pathname.startsWith("/dashboard")
 
   if (!user && isDashboard) {
     return NextResponse.redirect(new URL("/login", request.url))
@@ -35,6 +36,11 @@ export async function proxy(request: NextRequest) {
 
   if (user && isAuthRoute) {
     return NextResponse.redirect(new URL("/dashboard", request.url))
+  }
+
+  // zalogowany admin przez /adm → dashboard/admin, inni użytkownicy → brak dostępu
+  if (user && isAdminLoginRoute) {
+    return NextResponse.redirect(new URL("/dashboard/admin", request.url))
   }
 
   return supabaseResponse
