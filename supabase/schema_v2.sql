@@ -1,7 +1,7 @@
--- ============================================================
--- SquashLeague Platform — Full Schema v2
+﻿-- ============================================================
+-- SquashLeague Platform â€” Full Schema v2
 -- Uruchom w Supabase SQL Editor (rola: service_role)
--- UWAGA: Czyści poprzednią schemę. Baza musi być pusta.
+-- UWAGA: CzyĹ›ci poprzedniÄ… schemÄ™. Baza musi byÄ‡ pusta.
 -- ============================================================
 
 -- ============================================================
@@ -37,15 +37,15 @@ drop table if exists public.center_members cascade;
 drop table if exists public.centers cascade;
 drop table if exists public.profiles cascade;
 
-drop function if exists auth.is_admin() cascade;
+drop function if exists public.is_admin() cascade;
 drop function if exists auth.my_center_id() cascade;
-drop function if exists auth.is_center_member(uuid) cascade;
+drop function if exists public.is_center_member(uuid) cascade;
 
 -- ============================================================
--- SEKCJA 1: PROFILE I UŻYTKOWNICY
+-- SEKCJA 1: PROFILE I UĹ»YTKOWNICY
 -- ============================================================
 
--- Profile (rozszerzenie auth.users — 1:1)
+-- Profile (rozszerzenie auth.users â€” 1:1)
 create table public.profiles (
   id          uuid references auth.users(id) on delete cascade primary key,
   role        text not null check (role in ('admin', 'center', 'player')),
@@ -85,7 +85,7 @@ create table public.centers (
   updated_at  timestamptz not null default now()
 );
 
--- Członkowie centrum (dodatkowi adminowie / personel)
+-- CzĹ‚onkowie centrum (dodatkowi adminowie / personel)
 create table public.center_members (
   id          uuid default gen_random_uuid() primary key,
   center_id   uuid references public.centers(id) on delete cascade not null,
@@ -104,7 +104,7 @@ create table public.players (
   last_name   text not null,
   phone       text,
   avatar_url  text,
-  -- Zgody na udostępnianie danych kontaktowych rywalom
+  -- Zgody na udostÄ™pnianie danych kontaktowych rywalom
   contact_share_phone boolean not null default false,
   contact_share_email boolean not null default false,
   created_at  timestamptz not null default now(),
@@ -115,14 +115,14 @@ create table public.players (
 -- SEKCJA 2: HIERARCHIA ROZGRYWEK
 -- ============================================================
 
--- Rozgrywki (kontener dla sezonów)
+-- Rozgrywki (kontener dla sezonĂłw)
 create table public.competitions (
   id          uuid default gen_random_uuid() primary key,
   center_id   uuid references public.centers(id) on delete cascade not null,
   name        text not null,
   slug        text not null,
   description text,
-  -- Widoczność: public / private / mixed
+  -- WidocznoĹ›Ä‡: public / private / mixed
   visibility  text not null default 'public' check (visibility in ('public', 'private', 'mixed')),
   public_show_tables   boolean not null default true,
   public_show_schedule boolean not null default true,
@@ -133,7 +133,7 @@ create table public.competitions (
   entry_fee_amount   numeric(10,2),
   entry_fee_currency text not null default 'PLN',
   payment_block_mode text not null default 'soft' check (payment_block_mode in ('hard', 'soft')),
-  -- Domyślny format meczu (nadpisywalny per sezon/liga)
+  -- DomyĹ›lny format meczu (nadpisywalny per sezon/liga)
   default_match_format  jsonb not null default '{"type":"best_of","sets":5}'::jsonb,
   default_schedule_mode text not null default 'self' check (default_schedule_mode in ('center','self')),
   default_result_confirm_days integer not null default 3,
@@ -143,7 +143,7 @@ create table public.competitions (
   unique (center_id, slug)
 );
 
--- Pula zawodników rozgrywek
+-- Pula zawodnikĂłw rozgrywek
 create table public.competition_players (
   id             uuid default gen_random_uuid() primary key,
   competition_id uuid references public.competitions(id) on delete cascade not null,
@@ -156,7 +156,7 @@ create table public.competition_players (
   -- Zgoda RODO na poziomie rozgrywek
   consent_contact_share    boolean not null default false,
   consent_contact_share_at timestamptz,
-  -- Status opłat
+  -- Status opĹ‚at
   payment_status text not null default 'none'
     check (payment_status in ('none','pending','paid','overdue')),
   paid_at timestamptz,
@@ -181,7 +181,7 @@ create table public.seasons (
   updated_at     timestamptz not null default now()
 );
 
--- Ligi w sezonie (poziom 1 = najwyższa)
+-- Ligi w sezonie (poziom 1 = najwyĹĽsza)
 create table public.leagues (
   id              uuid default gen_random_uuid() primary key,
   season_id       uuid references public.seasons(id) on delete cascade not null,
@@ -230,7 +230,7 @@ create table public.rounds (
 -- Mecze (liga / turniej / drabinka)
 create table public.matches (
   id              uuid default gen_random_uuid() primary key,
-  -- Kontekst — jedno z poniższych jest ustawione:
+  -- Kontekst â€” jedno z poniĹĽszych jest ustawione:
   league_id       uuid references public.leagues(id) on delete cascade,
   tournament_id   uuid, -- FK po stworzeniu tournaments
   ladder_id       uuid, -- FK po stworzeniu ladders
@@ -243,7 +243,7 @@ create table public.matches (
     'scheduled','pending_confirmation','finished','walkover','not_played','postponed'
   )),
   winner_id       uuid references public.profiles(id),
-  -- Źródło wyniku
+  -- ĹąrĂłdĹ‚o wyniku
   result_source   text check (result_source in ('player','center')),
   submitted_by    uuid references public.profiles(id),
   submitted_at    timestamptz,
@@ -252,9 +252,9 @@ create table public.matches (
   disputed_by     uuid references public.profiles(id),
   disputed_at     timestamptz,
   auto_confirm_at timestamptz,
-  -- Nadpisanie formatu meczu (np. finał best-of-5 vs faza grupowa best-of-3)
+  -- Nadpisanie formatu meczu (np. finaĹ‚ best-of-5 vs faza grupowa best-of-3)
   format_override jsonb,
-  -- Termin ustalony przez zawodników/centrum
+  -- Termin ustalony przez zawodnikĂłw/centrum
   scheduled_at    timestamptz,
   -- Walkower
   walkover_type   text check (walkover_type in ('no_show','withdrawal','disqualification')),
@@ -273,7 +273,7 @@ create table public.match_sets (
   unique (match_id, set_number)
 );
 
--- Log zdarzeń meczu (potwierdzenia, korekty, kwestionowania)
+-- Log zdarzeĹ„ meczu (potwierdzenia, korekty, kwestionowania)
 create table public.match_events (
   id          uuid default gen_random_uuid() primary key,
   match_id    uuid references public.matches(id) on delete cascade not null,
@@ -293,7 +293,7 @@ create table public.match_events (
 -- SEKCJA 5: SILNIK PUNKTACJI
 -- ============================================================
 
--- Szablony punktacji (globalne: center_id = null; własne centrum: center_id ustawione)
+-- Szablony punktacji (globalne: center_id = null; wĹ‚asne centrum: center_id ustawione)
 -- Struktura config: {
 --   win_by_sets:  {"3:0": 5, "3:1": 4, "3:2": 3},
 --   loss_by_sets: {"0:3": 0, "1:3": 1, "2:3": 2},
@@ -314,7 +314,7 @@ create table public.scoring_templates (
   updated_at  timestamptz not null default now()
 );
 
--- Snapshot konfiguracji punktacji użytej w lidze
+-- Snapshot konfiguracji punktacji uĹĽytej w lidze
 create table public.scoring_configs (
   id          uuid default gen_random_uuid() primary key,
   league_id   uuid references public.leagues(id) on delete cascade unique not null,
@@ -373,7 +373,7 @@ create table public.ladders (
   id             uuid default gen_random_uuid() primary key,
   competition_id uuid references public.competitions(id) on delete cascade not null,
   name           text not null,
-  -- Parametry (wartości domyślne per specyfikacja sekcja 10)
+  -- Parametry (wartoĹ›ci domyĹ›lne per specyfikacja sekcja 10)
   max_challenge_distance  integer not null default 2,
   challenge_deadline_days integer not null default 7,
   protection_days         integer not null default 3,
@@ -427,7 +427,7 @@ create table public.invitation_tokens (
   id             uuid default gen_random_uuid() primary key,
   competition_id uuid references public.competitions(id) on delete cascade,
   center_id      uuid references public.centers(id) on delete cascade,
-  -- Typ: link (bez e-mail), email (konkretna osoba), code (krótki kod)
+  -- Typ: link (bez e-mail), email (konkretna osoba), code (krĂłtki kod)
   type           text not null check (type in ('link','email','code')),
   code           text unique not null,
   email          text,
@@ -446,10 +446,10 @@ alter table public.competition_players
   foreign key (invitation_token_id) references public.invitation_tokens(id);
 
 -- ============================================================
--- SEKCJA 9: PŁATNOŚCI
+-- SEKCJA 9: PĹATNOĹšCI
 -- ============================================================
 
--- Płatności online (HotPay)
+-- PĹ‚atnoĹ›ci online (HotPay)
 create table public.payments (
   id                      uuid default gen_random_uuid() primary key,
   competition_player_id   uuid references public.competition_players(id) on delete restrict not null,
@@ -463,7 +463,7 @@ create table public.payments (
   created_at   timestamptz not null default now()
 );
 
--- Ewidencja ręczna (gotówka / przelew odnotowany przez centrum)
+-- Ewidencja rÄ™czna (gotĂłwka / przelew odnotowany przez centrum)
 create table public.payment_ledger (
   id                    uuid default gen_random_uuid() primary key,
   competition_player_id uuid references public.competition_players(id) on delete restrict not null,
@@ -491,7 +491,7 @@ create table public.plans (
   created_at              timestamptz not null default now()
 );
 
--- Abonamenty centrów
+-- Abonamenty centrĂłw
 create table public.subscriptions (
   id          uuid default gen_random_uuid() primary key,
   center_id   uuid references public.centers(id) on delete cascade unique not null,
@@ -550,10 +550,10 @@ create table public.audit_log (
 );
 
 -- ============================================================
--- SEKCJA 13: FUNKCJE POMOCNICZE (auth schema)
+-- SEKCJA 13: FUNKCJE POMOCNICZE (public schema)
 -- ============================================================
 
-create or replace function auth.is_admin()
+create or replace function public.is_admin()
 returns boolean
 language sql security definer stable
 as $$
@@ -563,7 +563,7 @@ as $$
   );
 $$;
 
-create or replace function auth.is_center_member(p_center_id uuid)
+create or replace function public.is_center_member(p_center_id uuid)
 returns boolean
 language sql security definer stable
 as $$
@@ -615,7 +615,7 @@ alter table public.audit_log                 enable row level security;
 -- PROFILES
 create policy "profiles: own read"
   on public.profiles for select
-  using (auth.uid() = id or auth.is_admin());
+  using (auth.uid() = id or public.is_admin());
 
 create policy "profiles: own insert"
   on public.profiles for insert
@@ -623,12 +623,12 @@ create policy "profiles: own insert"
 
 create policy "profiles: own update"
   on public.profiles for update
-  using (auth.uid() = id or auth.is_admin());
+  using (auth.uid() = id or public.is_admin());
 
 -- CENTERS
 create policy "centers: public read"
   on public.centers for select
-  using (is_active = true or auth.uid() = profile_id or auth.is_admin());
+  using (is_active = true or auth.uid() = profile_id or public.is_admin());
 
 create policy "centers: own insert"
   on public.centers for insert
@@ -636,22 +636,22 @@ create policy "centers: own insert"
 
 create policy "centers: own update"
   on public.centers for update
-  using (profile_id = auth.uid() or auth.is_admin());
+  using (profile_id = auth.uid() or public.is_admin());
 
 create policy "centers: admin delete"
   on public.centers for delete
-  using (auth.is_admin());
+  using (public.is_admin());
 
 -- CENTER MEMBERS
 create policy "center_members: center read"
   on public.center_members for select
-  using (auth.is_center_member(center_id) or auth.is_admin());
+  using (public.is_center_member(center_id) or public.is_admin());
 
 create policy "center_members: center write"
   on public.center_members for all
   using (
     exists (select 1 from public.centers where id = center_id and profile_id = auth.uid())
-    or auth.is_admin()
+    or public.is_admin()
   );
 
 -- PLAYERS
@@ -664,15 +664,15 @@ create policy "players: own insert"
 
 create policy "players: own update"
   on public.players for update
-  using (profile_id = auth.uid() or auth.is_admin());
+  using (profile_id = auth.uid() or public.is_admin());
 
 -- COMPETITIONS
 create policy "competitions: readable"
   on public.competitions for select
   using (
     visibility = 'public'
-    or auth.is_center_member(center_id)
-    or auth.is_admin()
+    or public.is_center_member(center_id)
+    or public.is_admin()
     or exists (
       select 1 from public.competition_players cp
       where cp.competition_id = id and cp.profile_id = auth.uid()
@@ -681,17 +681,17 @@ create policy "competitions: readable"
 
 create policy "competitions: center write"
   on public.competitions for all
-  using (auth.is_center_member(center_id) or auth.is_admin());
+  using (public.is_center_member(center_id) or public.is_admin());
 
 -- COMPETITION PLAYERS
 create policy "competition_players: readable"
   on public.competition_players for select
   using (
     profile_id = auth.uid()
-    or auth.is_center_member(
+    or public.is_center_member(
       (select center_id from public.competitions where id = competition_id)
     )
-    or auth.is_admin()
+    or public.is_admin()
   );
 
 create policy "competition_players: self insert"
@@ -701,11 +701,11 @@ create policy "competition_players: self insert"
 create policy "competition_players: center update"
   on public.competition_players for update
   using (
-    auth.is_center_member(
+    public.is_center_member(
       (select center_id from public.competitions where id = competition_id)
     )
     or profile_id = auth.uid()
-    or auth.is_admin()
+    or public.is_admin()
   );
 
 -- SEASONS
@@ -717,8 +717,8 @@ create policy "seasons: readable"
       where c.id = competition_id
         and (
           c.visibility = 'public'
-          or auth.is_center_member(c.center_id)
-          or auth.is_admin()
+          or public.is_center_member(c.center_id)
+          or public.is_admin()
           or exists (
             select 1 from public.competition_players cp
             where cp.competition_id = c.id and cp.profile_id = auth.uid()
@@ -730,10 +730,10 @@ create policy "seasons: readable"
 create policy "seasons: center write"
   on public.seasons for all
   using (
-    auth.is_center_member(
+    public.is_center_member(
       (select center_id from public.competitions where id = competition_id)
     )
-    or auth.is_admin()
+    or public.is_admin()
   );
 
 -- LEAGUES
@@ -746,8 +746,8 @@ create policy "leagues: readable"
       where s.id = season_id
         and (
           c.visibility = 'public'
-          or auth.is_center_member(c.center_id)
-          or auth.is_admin()
+          or public.is_center_member(c.center_id)
+          or public.is_admin()
           or exists (
             select 1 from public.competition_players cp
             where cp.competition_id = c.id and cp.profile_id = auth.uid()
@@ -759,13 +759,13 @@ create policy "leagues: readable"
 create policy "leagues: center write"
   on public.leagues for all
   using (
-    auth.is_center_member(
+    public.is_center_member(
       (select c.center_id
        from public.seasons s
        join public.competitions c on c.id = s.competition_id
        where s.id = season_id)
     )
-    or auth.is_admin()
+    or public.is_admin()
   );
 
 -- LEAGUE PLAYERS
@@ -773,8 +773,8 @@ create policy "league_players: readable"
   on public.league_players for select
   using (
     profile_id = auth.uid()
-    or auth.is_admin()
-    or auth.is_center_member(
+    or public.is_admin()
+    or public.is_center_member(
       (select c.center_id
        from public.leagues l
        join public.seasons s on s.id = l.season_id
@@ -792,14 +792,14 @@ create policy "league_players: readable"
 create policy "league_players: center write"
   on public.league_players for all
   using (
-    auth.is_center_member(
+    public.is_center_member(
       (select c.center_id
        from public.leagues l
        join public.seasons s on s.id = l.season_id
        join public.competitions c on c.id = s.competition_id
        where l.id = league_id)
     )
-    or auth.is_admin()
+    or public.is_admin()
   );
 
 -- ROUNDS
@@ -809,14 +809,14 @@ create policy "rounds: readable"
 create policy "rounds: center write"
   on public.rounds for all
   using (
-    auth.is_center_member(
+    public.is_center_member(
       (select c.center_id
        from public.leagues l
        join public.seasons s on s.id = l.season_id
        join public.competitions c on c.id = s.competition_id
        where l.id = league_id)
     )
-    or auth.is_admin()
+    or public.is_admin()
   );
 
 -- MATCHES
@@ -825,13 +825,13 @@ create policy "matches: readable"
   using (
     player_a_id = auth.uid()
     or player_b_id = auth.uid()
-    or auth.is_admin()
+    or public.is_admin()
     or (league_id is not null and exists (
       select 1 from public.leagues l
       join public.seasons s on s.id = l.season_id
       join public.competitions c on c.id = s.competition_id
       where l.id = league_id
-        and (c.visibility = 'public' or auth.is_center_member(c.center_id))
+        and (c.visibility = 'public' or public.is_center_member(c.center_id))
     ))
   );
 
@@ -840,8 +840,8 @@ create policy "matches: player or center update"
   using (
     player_a_id = auth.uid()
     or player_b_id = auth.uid()
-    or auth.is_admin()
-    or (league_id is not null and auth.is_center_member(
+    or public.is_admin()
+    or (league_id is not null and public.is_center_member(
       (select c.center_id
        from public.leagues l
        join public.seasons s on s.id = l.season_id
@@ -853,8 +853,8 @@ create policy "matches: player or center update"
 create policy "matches: center insert"
   on public.matches for insert
   with check (
-    auth.is_admin()
-    or (league_id is not null and auth.is_center_member(
+    public.is_admin()
+    or (league_id is not null and public.is_center_member(
       (select c.center_id
        from public.leagues l
        join public.seasons s on s.id = l.season_id
@@ -876,7 +876,7 @@ create policy "match_sets: write via match"
         and (
           m.player_a_id = auth.uid()
           or m.player_b_id = auth.uid()
-          or auth.is_admin()
+          or public.is_admin()
         )
     )
   );
@@ -895,15 +895,15 @@ create policy "scoring_templates: readable"
   using (
     is_global = true
     or center_id is null
-    or auth.is_center_member(center_id)
-    or auth.is_admin()
+    or public.is_center_member(center_id)
+    or public.is_admin()
   );
 
 create policy "scoring_templates: write"
   on public.scoring_templates for all
   using (
-    (center_id is not null and auth.is_center_member(center_id))
-    or auth.is_admin()
+    (center_id is not null and public.is_center_member(center_id))
+    or public.is_admin()
   );
 
 -- SCORING CONFIGS
@@ -913,8 +913,8 @@ create policy "scoring_configs: public read"
 create policy "scoring_configs: center write"
   on public.scoring_configs for all
   using (
-    auth.is_admin()
-    or auth.is_center_member(
+    public.is_admin()
+    or public.is_center_member(
       (select c.center_id
        from public.leagues l
        join public.seasons s on s.id = l.season_id
@@ -930,14 +930,14 @@ create policy "tournaments: readable"
     exists (
       select 1 from public.competitions c
       where c.id = competition_id
-        and (c.visibility = 'public' or auth.is_center_member(c.center_id) or auth.is_admin())
+        and (c.visibility = 'public' or public.is_center_member(c.center_id) or public.is_admin())
     )
   );
 
 create policy "tournaments: center write"
   on public.tournaments for all
   using (
-    auth.is_center_member(competition_id) or auth.is_admin()
+    public.is_center_member(competition_id) or public.is_admin()
   );
 
 -- TOURNAMENT SLOTS
@@ -947,8 +947,8 @@ create policy "tournament_slots: public read"
 create policy "tournament_slots: center write"
   on public.tournament_slots for all
   using (
-    auth.is_admin()
-    or auth.is_center_member(
+    public.is_admin()
+    or public.is_center_member(
       (select competition_id from public.tournaments where id = tournament_id)
     )
   );
@@ -959,7 +959,7 @@ create policy "ladders: public read"
 
 create policy "ladders: center write"
   on public.ladders for all
-  using (auth.is_center_member(competition_id) or auth.is_admin());
+  using (public.is_center_member(competition_id) or public.is_admin());
 
 -- LADDER POSITIONS
 create policy "ladder_positions: public read"
@@ -968,8 +968,8 @@ create policy "ladder_positions: public read"
 create policy "ladder_positions: center write"
   on public.ladder_positions for all
   using (
-    auth.is_admin()
-    or auth.is_center_member(
+    public.is_admin()
+    or public.is_center_member(
       (select competition_id from public.ladders where id = ladder_id)
     )
   );
@@ -988,8 +988,8 @@ create policy "challenges: readable"
   using (
     challenger_id = auth.uid()
     or challenged_id = auth.uid()
-    or auth.is_admin()
-    or auth.is_center_member(
+    or public.is_admin()
+    or public.is_center_member(
       (select competition_id from public.ladders where id = ladder_id)
     )
   );
@@ -1003,8 +1003,8 @@ create policy "challenges: player or center update"
   using (
     challenger_id = auth.uid()
     or challenged_id = auth.uid()
-    or auth.is_admin()
-    or auth.is_center_member(
+    or public.is_admin()
+    or public.is_center_member(
       (select competition_id from public.ladders where id = ladder_id)
     )
   );
@@ -1014,8 +1014,8 @@ create policy "invitation_tokens: center read"
   on public.invitation_tokens for select
   using (
     created_by = auth.uid()
-    or auth.is_admin()
-    or auth.is_center_member(
+    or public.is_admin()
+    or public.is_center_member(
       coalesce(center_id, (select center_id from public.competitions where id = competition_id))
     )
   );
@@ -1025,8 +1025,8 @@ create policy "invitation_tokens: center insert"
   with check (
     created_by = auth.uid()
     and (
-      (center_id is not null and auth.is_center_member(center_id))
-      or (competition_id is not null and auth.is_center_member(
+      (center_id is not null and public.is_center_member(center_id))
+      or (competition_id is not null and public.is_center_member(
         (select center_id from public.competitions where id = competition_id)
       ))
     )
@@ -1036,12 +1036,12 @@ create policy "invitation_tokens: center insert"
 create policy "payments: readable"
   on public.payments for select
   using (
-    auth.is_admin()
+    public.is_admin()
     or exists (
       select 1 from public.competition_players cp
       where cp.id = competition_player_id and cp.profile_id = auth.uid()
     )
-    or auth.is_center_member(
+    or public.is_center_member(
       (select c.center_id
        from public.competition_players cp
        join public.competitions c on c.id = cp.competition_id
@@ -1052,7 +1052,7 @@ create policy "payments: readable"
 -- PAYMENT LEDGER
 create policy "payment_ledger: center write"
   on public.payment_ledger for all
-  using (auth.is_admin() or recorded_by = auth.uid());
+  using (public.is_admin() or recorded_by = auth.uid());
 
 create policy "payment_ledger: player read"
   on public.payment_ledger for select
@@ -1061,7 +1061,7 @@ create policy "payment_ledger: player read"
       select 1 from public.competition_players cp
       where cp.id = competition_player_id and cp.profile_id = auth.uid()
     )
-    or auth.is_admin()
+    or public.is_admin()
   );
 
 -- PLANS
@@ -1069,20 +1069,20 @@ create policy "plans: public read"
   on public.plans for select using (true);
 
 create policy "plans: admin write"
-  on public.plans for all using (auth.is_admin());
+  on public.plans for all using (public.is_admin());
 
 -- SUBSCRIPTIONS
 create policy "subscriptions: center read"
   on public.subscriptions for select
-  using (auth.is_center_member(center_id) or auth.is_admin());
+  using (public.is_center_member(center_id) or public.is_admin());
 
 create policy "subscriptions: admin write"
-  on public.subscriptions for all using (auth.is_admin());
+  on public.subscriptions for all using (public.is_admin());
 
 -- NOTIFICATIONS
 create policy "notifications: own read"
   on public.notifications for select
-  using (profile_id = auth.uid() or auth.is_admin());
+  using (profile_id = auth.uid() or public.is_admin());
 
 create policy "notifications: system insert"
   on public.notifications for insert
@@ -1095,11 +1095,11 @@ create policy "notifications: own update"
 -- NOTIFICATION PREFERENCES
 create policy "notification_preferences: own"
   on public.notification_preferences for all
-  using (profile_id = auth.uid() or auth.is_admin());
+  using (profile_id = auth.uid() or public.is_admin());
 
 -- AUDIT LOG
 create policy "audit_log: admin read"
-  on public.audit_log for select using (auth.is_admin());
+  on public.audit_log for select using (public.is_admin());
 
 create policy "audit_log: authenticated insert"
   on public.audit_log for insert
@@ -1126,14 +1126,14 @@ create index idx_invitation_tokens_code   on public.invitation_tokens(code);
 create index idx_ladder_positions_ladder  on public.ladder_positions(ladder_id, position);
 
 -- ============================================================
--- SEKCJA 16: DANE DOMYŚLNE
+-- SEKCJA 16: DANE DOMYĹšLNE
 -- ============================================================
 
 -- Globalny szablon punktacji "Standard" (per specyfikacja sekcja 21)
 insert into public.scoring_templates (name, description, config, is_global, center_id)
 values (
   'Standard',
-  'Domyślny szablon: 3:0=5 pkt, 3:1=4, 3:2=3, 2:3=2, 1:3=1, 0:3=0',
+  'DomyĹ›lny szablon: 3:0=5 pkt, 3:1=4, 3:2=3, 2:3=2, 1:3=1, 0:3=0',
   '{
     "win_by_sets":  {"3:0": 5, "3:1": 4, "3:2": 3},
     "loss_by_sets": {"0:3": 0, "1:3": 1, "2:3": 2},
@@ -1147,8 +1147,10 @@ values (
   null
 );
 
--- Plany abonamentów (per specyfikacja sekcja 16.2, propozycja freemium)
+-- Plany abonamentĂłw (per specyfikacja sekcja 16.2, propozycja freemium)
 insert into public.plans (name, max_active_competitions, max_players, sms_enabled, custom_branding, price_monthly)
 values
   ('Darmowy', 1, 20, false, false, 0.00),
   ('Pro',     null, null, true, true, null); -- cena do decyzji biznesowej
+
+
