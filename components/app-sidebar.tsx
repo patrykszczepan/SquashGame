@@ -1,16 +1,20 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import {
   LayoutDashboard,
   Trophy,
   Users,
-  Calendar,
   BarChart3,
   Settings,
   Building2,
   ChevronUp,
   LogOut,
+  ClipboardList,
+  PenLine,
+  Medal,
+  CreditCard,
 } from "lucide-react"
 import {
   Sidebar,
@@ -32,33 +36,6 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase/client"
 
-const centerNav = [
-  { title: "Dashboard", icon: LayoutDashboard, url: "/dashboard/center" },
-  { title: "Korty", icon: Building2, url: "/dashboard/center/courts" },
-  { title: "Rezerwacje", icon: Calendar, url: "/dashboard/center/bookings" },
-  { title: "Zawodnicy", icon: Users, url: "/dashboard/center/players" },
-  { title: "Statystyki", icon: BarChart3, url: "/dashboard/center/stats" },
-  { title: "Ustawienia", icon: Settings, url: "/dashboard/center/settings" },
-]
-
-const playerNav = [
-  { title: "Dashboard", icon: LayoutDashboard, url: "/dashboard/player" },
-  { title: "Moje mecze", icon: Trophy, url: "/dashboard/player/matches" },
-  { title: "Rezerwacje", icon: Calendar, url: "/dashboard/player/bookings" },
-  { title: "Centra squash", icon: Building2, url: "/dashboard/player/centers" },
-  { title: "Ranking", icon: BarChart3, url: "/dashboard/player/ranking" },
-  { title: "Ustawienia", icon: Settings, url: "/dashboard/player/settings" },
-]
-
-const adminNav = [
-  { title: "Dashboard", icon: LayoutDashboard, url: "/dashboard/admin" },
-  { title: "Centra squash", icon: Building2, url: "/dashboard/admin/centers" },
-  { title: "Zawodnicy", icon: Users, url: "/dashboard/admin/players" },
-  { title: "Turnieje", icon: Trophy, url: "/dashboard/admin/tournaments" },
-  { title: "Statystyki", icon: BarChart3, url: "/dashboard/admin/stats" },
-  { title: "Ustawienia", icon: Settings, url: "/dashboard/admin/settings" },
-]
-
 interface AppSidebarProps {
   role?: "center" | "player" | "admin"
   displayName: string
@@ -67,7 +44,37 @@ interface AppSidebarProps {
 
 export function AppSidebar({ role, displayName, email }: AppSidebarProps) {
   const router = useRouter()
+  const tNav = useTranslations("nav")
+  const tUser = useTranslations("nav.user")
+
+  const centerNav = [
+    { title: tNav("center.dashboard"), icon: LayoutDashboard, url: "/dashboard/center" },
+    { title: tNav("center.competitions"), icon: Trophy, url: "/dashboard/center/competitions" },
+    { title: tNav("center.players"), icon: Users, url: "/dashboard/center/players" },
+    { title: tNav("center.results"), icon: PenLine, url: "/dashboard/center/results" },
+    { title: tNav("center.rankings"), icon: BarChart3, url: "/dashboard/center/rankings" },
+    { title: tNav("center.settings"), icon: Settings, url: "/dashboard/center/settings" },
+  ]
+
+  const playerNav = [
+    { title: tNav("player.dashboard"), icon: LayoutDashboard, url: "/dashboard/player" },
+    { title: tNav("player.myLeagues"), icon: ClipboardList, url: "/dashboard/player/leagues" },
+    { title: tNav("player.matches"), icon: Trophy, url: "/dashboard/player/matches" },
+    { title: tNav("player.ranking"), icon: Medal, url: "/dashboard/player/ranking" },
+    { title: tNav("player.settings"), icon: Settings, url: "/dashboard/player/settings" },
+  ]
+
+  const adminNav = [
+    { title: tNav("admin.dashboard"), icon: LayoutDashboard, url: "/dashboard/admin" },
+    { title: tNav("admin.centers"), icon: Building2, url: "/dashboard/admin/centers" },
+    { title: tNav("admin.players"), icon: Users, url: "/dashboard/admin/players" },
+    { title: tNav("admin.scoringTemplates"), icon: ClipboardList, url: "/dashboard/admin/scoring-templates" },
+    { title: tNav("admin.plans"), icon: CreditCard, url: "/dashboard/admin/plans" },
+    { title: tNav("admin.settings"), icon: Settings, url: "/dashboard/admin/settings" },
+  ]
+
   const navItems = role === "admin" ? adminNav : role === "center" ? centerNav : playerNav
+
   const initials = displayName
     .split(" ")
     .map((w) => w[0])
@@ -87,7 +94,7 @@ export function AppSidebar({ role, displayName, email }: AppSidebarProps) {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-base font-semibold mb-2">
-            SquashGame
+            SquashLeague
           </SidebarGroupLabel>
           <SidebarMenu>
             {navItems.map((item) => (
@@ -125,15 +132,15 @@ export function AppSidebar({ role, displayName, email }: AppSidebarProps) {
                 side="top"
                 align="start"
               >
-                <DropdownMenuItem>Profil</DropdownMenuItem>
-                <DropdownMenuItem>Ustawienia konta</DropdownMenuItem>
+                <DropdownMenuItem>{tUser("profile")}</DropdownMenuItem>
+                <DropdownMenuItem>{tUser("accountSettings")}</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
                   onClick={handleLogout}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  Wyloguj
+                  {tUser("logout")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

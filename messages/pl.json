@@ -1,0 +1,201 @@
+{
+  "common": {
+    "appName": "SquashLeague",
+    "loading": "Ładowanie...",
+    "save": "Zapisz",
+    "cancel": "Anuluj",
+    "back": "Wróć",
+    "settings": "Ustawienia",
+    "dashboard": "Dashboard",
+    "logout": "Wyloguj",
+    "profile": "Profil",
+    "accountSettings": "Ustawienia konta",
+    "or": "lub",
+    "required": "*",
+    "optional": "(opcjonalny)"
+  },
+  "auth": {
+    "login": {
+      "title": "Zaloguj się",
+      "description": "Wpisz swoje dane logowania",
+      "email": "Email",
+      "emailPlaceholder": "twoj@email.pl",
+      "password": "Hasło",
+      "submit": "Zaloguj się",
+      "submitting": "Logowanie...",
+      "google": "Kontynuuj z Google",
+      "googleRedirecting": "Przekierowanie...",
+      "or": "lub",
+      "noAccount": "Nie masz konta?",
+      "register": "Zarejestruj się",
+      "error": "Nieprawidłowy email lub hasło."
+    },
+    "selectRole": {
+      "title": "Wybierz typ konta",
+      "description": "Jak chcesz korzystać z platformy?",
+      "player": {
+        "title": "Zawodnik",
+        "description": "Biorę udział w rozgrywkach, wpisuję wyniki i śledzę rankingi."
+      },
+      "center": {
+        "title": "Centrum squash",
+        "description": "Organizuję ligi, zarządzam zawodnikami i sezonami."
+      }
+    },
+    "registerPlayer": {
+      "title": "Rejestracja zawodnika",
+      "description": "Wypełnij swoje dane lub użyj Google",
+      "firstName": "Imię",
+      "firstNamePlaceholder": "Jan",
+      "lastName": "Nazwisko",
+      "lastNamePlaceholder": "Kowalski",
+      "phone": "Telefon",
+      "phonePlaceholder": "+48 123 456 789",
+      "skillLevel": "Poziom gry",
+      "skillLevelPlaceholder": "Wybierz poziom",
+      "skillLevels": {
+        "beginner": "Początkujący",
+        "intermediate": "Średniozaawansowany",
+        "advanced": "Zaawansowany"
+      },
+      "email": "Email",
+      "emailPlaceholder": "jan@email.pl",
+      "password": "Hasło",
+      "passwordPlaceholder": "min. 8 znaków",
+      "submit": "Załóż konto zawodnika",
+      "submitting": "Rejestracja...",
+      "google": "Zarejestruj przez Google",
+      "googleRedirecting": "Przekierowanie...",
+      "orFillData": "lub wpisz dane",
+      "backToSelect": "← Wróć do wyboru konta",
+      "errors": {
+        "registration": "Błąd rejestracji.",
+        "profile": "Błąd tworzenia profilu.",
+        "playerProfile": "Błąd tworzenia profilu zawodnika."
+      }
+    },
+    "registerCenter": {
+      "title": "Rejestracja centrum",
+      "description": "Wypełnij dane centrum lub użyj Google",
+      "name": "Nazwa centrum",
+      "namePlaceholder": "np. Centrum Squash Lublin",
+      "address": "Adres",
+      "addressPlaceholder": "ul. Przykładowa 1",
+      "postalCode": "Kod pocztowy",
+      "postalCodePlaceholder": "20-001",
+      "city": "Miasto",
+      "cityPlaceholder": "Lublin",
+      "phone": "Telefon",
+      "phonePlaceholder": "+48 123 456 789",
+      "nip": "NIP",
+      "nipOptional": "(opcjonalny)",
+      "nipPlaceholder": "1234567890",
+      "email": "Email",
+      "emailPlaceholder": "centrum@email.pl",
+      "password": "Hasło",
+      "passwordPlaceholder": "min. 8 znaków",
+      "submit": "Załóż konto centrum",
+      "submitting": "Rejestracja...",
+      "google": "Zarejestruj przez Google",
+      "googleRedirecting": "Przekierowanie...",
+      "orFillData": "lub wpisz dane",
+      "backToSelect": "← Wróć do wyboru konta",
+      "errors": {
+        "registration": "Błąd rejestracji.",
+        "profile": "Błąd tworzenia profilu.",
+        "centerProfile": "Błąd tworzenia profilu centrum."
+      }
+    },
+    "onboarding": {
+      "player": {
+        "title": "Uzupełnij profil zawodnika",
+        "description": "Jeszcze kilka informacji i możesz zacząć grać.",
+        "submit": "Zapisz i przejdź do panelu",
+        "submitting": "Zapisywanie..."
+      },
+      "center": {
+        "title": "Uzupełnij dane centrum",
+        "description": "Podaj informacje o swoim centrum squash.",
+        "submit": "Zapisz i przejdź do panelu",
+        "submitting": "Zapisywanie..."
+      }
+    },
+    "admin": {
+      "title": "Panel administratora",
+      "description": "Dostęp tylko dla administratorów platformy.",
+      "email": "Email administratora",
+      "password": "Hasło",
+      "submit": "Zaloguj jako admin",
+      "submitting": "Logowanie...",
+      "error": "Brak uprawnień administratora lub błędne dane."
+    }
+  },
+  "nav": {
+    "admin": {
+      "dashboard": "Dashboard",
+      "centers": "Centra squash",
+      "players": "Zawodnicy",
+      "scoringTemplates": "Szablony punktacji",
+      "plans": "Plany abonamentów",
+      "stats": "Statystyki",
+      "settings": "Ustawienia"
+    },
+    "center": {
+      "dashboard": "Dashboard",
+      "competitions": "Rozgrywki",
+      "players": "Zawodnicy",
+      "results": "Wpisywanie wyników",
+      "rankings": "Rankingi",
+      "settings": "Ustawienia"
+    },
+    "player": {
+      "dashboard": "Dashboard",
+      "myLeagues": "Moje ligi",
+      "matches": "Mecze",
+      "ranking": "Ranking",
+      "settings": "Ustawienia"
+    },
+    "user": {
+      "profile": "Profil",
+      "accountSettings": "Ustawienia konta",
+      "logout": "Wyloguj"
+    }
+  },
+  "dashboard": {
+    "admin": {
+      "title": "Panel administratora",
+      "subtitle": "Przegląd całej platformy SquashLeague",
+      "stats": {
+        "centers": "Centra squash",
+        "players": "Zawodnicy",
+        "competitions": "Aktywne rozgrywki",
+        "activeToday": "Aktywni dziś"
+      }
+    },
+    "center": {
+      "titleFallback": "Moje centrum",
+      "subtitleFallback": "Uzupełnij dane centrum",
+      "stats": {
+        "activeCompetitions": "Aktywne rozgrywki",
+        "activeCompetitionsHint": "Utwórz pierwszą ligę",
+        "playerPool": "Zawodnicy w puli",
+        "pendingResults": "Wyniki do zatwierdzenia"
+      }
+    },
+    "player": {
+      "titleFallback": "Mój profil",
+      "welcomeBack": "Witaj z powrotem!",
+      "stats": {
+        "myLeagues": "Moje ligi",
+        "myLeaguesHint": "Dołącz do rozgrywek",
+        "matchesThisSeason": "Mecze w sezonie",
+        "winRate": "Wygrane"
+      },
+      "skillLevels": {
+        "beginner": "Początkujący",
+        "intermediate": "Średniozaawansowany",
+        "advanced": "Zaawansowany"
+      }
+    }
+  }
+}
