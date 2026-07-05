@@ -161,6 +161,43 @@
       "logout": "Wyloguj"
     }
   },
+  "competitions": {
+    "title": "Rozgrywki",
+    "subtitle": "Zarządzaj rozgrywkami i ligami",
+    "newCompetition": "Nowe rozgrywki",
+    "noCompetitions": "Brak rozgrywek",
+    "noCompetitionsHint": "Utwórz pierwsze rozgrywki, aby zarządzać ligami.",
+    "seasons": "Sezony",
+    "noSeasons": "Brak sezonów",
+    "activeSeason": "Aktywny sezon",
+    "players": "zawodników",
+    "inviteLink": "Link zaproszenia",
+    "generateInviteLink": "Generuj link",
+    "copyLink": "Kopiuj",
+    "linkCopied": "Skopiowano!",
+    "new": {
+      "title": "Nowe rozgrywki",
+      "subtitle": "Wypełnij podstawowe informacje o rozgrywkach.",
+      "basicInfo": "Podstawowe informacje",
+      "basicInfoDesc": "Nazwa i widoczność rozgrywek."
+    },
+    "form": {
+      "name": "Nazwa rozgrywek",
+      "namePlaceholder": "np. Lubińska Liga Squasha",
+      "nameRequired": "Podaj nazwę rozgrywek.",
+      "description": "Opis",
+      "descriptionPlaceholder": "Krótki opis rozgrywek (opcjonalny)...",
+      "visibility": "Widoczność",
+      "create": "Utwórz rozgrywki",
+      "creating": "Tworzenie...",
+      "cancel": "Anuluj"
+    },
+    "visibility": {
+      "public": "Publiczne",
+      "private": "Prywatne",
+      "mixed": "Mieszane"
+    }
+  },
   "dashboard": {
     "admin": {
       "title": "Panel administratora",
