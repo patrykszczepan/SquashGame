@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Trophy, ChevronRight, Users } from "lucide-react"
 import { ActivateSeasonButton } from "./ActivateSeasonButton"
+import { CloseSeasonButton } from "./CloseSeasonButton"
+import { ExternalLink } from "lucide-react"
 
 export default async function SeasonDetailPage({
   params,
@@ -19,7 +21,7 @@ export default async function SeasonDetailPage({
 
   const { data: center } = await supabase
     .from("centers")
-    .select("id")
+    .select("id, slug")
     .eq("profile_id", user.id)
     .single()
   if (!center) redirect("/dashboard/center")
@@ -28,7 +30,7 @@ export default async function SeasonDetailPage({
     .from("seasons")
     .select(`
       *,
-      competitions!inner(id, name, center_id),
+      competitions!inner(id, name, center_id, slug),
       leagues(
         id, name, level, round_robin_mode,
         league_players(count),
@@ -81,6 +83,18 @@ export default async function SeasonDetailPage({
                 : "Szkic"}
             </Badge>
             {season.status === "draft" && <ActivateSeasonButton seasonId={seasonId} />}
+            {season.status === "active" && <CloseSeasonButton seasonId={seasonId} />}
+            {center.slug && season.competitions.slug && (
+              <Button variant="ghost" size="sm" asChild>
+                <Link
+                  href={`/c/${center.slug}/${season.competitions.slug}/${seasonId}`}
+                  target="_blank"
+                >
+                  <ExternalLink className="h-4 w-4 mr-1" />
+                  Strona publiczna
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
       </div>

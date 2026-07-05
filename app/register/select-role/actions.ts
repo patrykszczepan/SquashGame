@@ -3,6 +3,11 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 
+function slugify(text: string) {
+  return text.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 50)
+}
+
 export async function selectRole(role: "player" | "center"): Promise<{ error: string } | void> {
   const supabase = await createClient()
 
@@ -34,9 +39,11 @@ export async function selectRole(role: "player" | "center"): Promise<{ error: st
     })
   } else {
     const name = user.user_metadata?.full_name ?? user.email ?? "Centrum"
+    const slug = slugify(name) + "-" + Math.random().toString(36).slice(2, 6)
     await supabase.from("centers").insert({
       profile_id: user.id,
       name,
+      slug,
     })
   }
 
