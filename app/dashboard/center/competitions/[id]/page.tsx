@@ -243,6 +243,8 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
           </div>{/* /seasons */}
         </div>{/* /lg:col-span-2 */}
 
+        {/* Sidebar */}
+        <div className="space-y-4">
           {/* Invitations */}
           <Card>
             <CardHeader className="pb-3">
