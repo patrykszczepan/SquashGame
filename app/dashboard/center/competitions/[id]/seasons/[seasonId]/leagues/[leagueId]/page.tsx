@@ -9,6 +9,7 @@ import { calculateTable } from "@/lib/scoring/engine"
 import type { ScoringConfig, Match } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { LeaguePlayersPanel } from "./LeaguePlayersPanel"
+import { QuickAssignButton } from "./QuickAssignButton"
 import { GenerateScheduleButton, ResetScheduleButton } from "./GenerateScheduleButton"
 import { LeagueActions } from "./LeagueActions"
 import { AssignLeaguePlayersDialog } from "./AssignLeaguePlayersDialog"
@@ -466,12 +467,11 @@ export default async function LeagueDetailPage({
 
         {/* PLAYERS */}
         <TabsContent value="players" className="space-y-4">
+          {/* Assigned */}
           <Card className="py-0 gap-0">
             <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
               <span className="font-semibold text-sm">
-                {leaguePlayers.length === 0
-                  ? "Zawodnicy"
-                  : `${leaguePlayers.length} ${leaguePlayers.length === 1 ? "zawodnik" : "zawodników"} w lidze`}
+                Przypisani do ligi ({leaguePlayers.length})
               </span>
               <div className="flex items-center gap-2">
                 <AddGuestToLeagueDialog leagueId={leagueId} />
@@ -486,7 +486,7 @@ export default async function LeagueDetailPage({
             </div>
             {leaguePlayers.length === 0 ? (
               <div className="py-8 text-center text-sm text-muted-foreground">
-                Brak zawodników w lidze.
+                Brak przypisanych zawodników.
               </div>
             ) : (
               <LeaguePlayersPanel
@@ -495,6 +495,53 @@ export default async function LeagueDetailPage({
               />
             )}
           </Card>
+
+          {/* Unassigned from competition pool */}
+          {(availablePlayers.length > 0 || availableCenterPlayers.length > 0) && (
+            <Card className="py-0 gap-0">
+              <div className="px-4 py-3 border-b bg-muted/50">
+                <span className="font-semibold text-sm">
+                  Nieprzypisani ({availablePlayers.length + availableCenterPlayers.length})
+                </span>
+              </div>
+              <table className="w-full text-sm">
+                <tbody>
+                  {availablePlayers.map((cp: any) => {
+                    const name = cp.players
+                      ? `${cp.players.last_name} ${cp.players.first_name}`
+                      : "—"
+                    const inOther = profileInLeague[cp.profile_id]
+                    return (
+                      <tr key={cp.profile_id} className="border-b last:border-0 hover:bg-muted/30">
+                        <td className="px-4 py-2.5 font-medium">{name}</td>
+                        <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                          {inOther ? `inna liga: ${inOther}` : "wolny"}
+                        </td>
+                        <td className="px-4 py-2.5 w-10">
+                          <QuickAssignButton leagueId={leagueId} profileId={cp.profile_id} />
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  {availableCenterPlayers.map((cp: any) => {
+                    const name = `${cp.last_name} ${cp.first_name}`
+                    const inOther = centerPlayerInLeague[cp.id]
+                    return (
+                      <tr key={cp.id} className="border-b last:border-0 hover:bg-muted/30">
+                        <td className="px-4 py-2.5 font-medium">{name}</td>
+                        <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                          {inOther ? `inna liga: ${inOther}` : "wolny · bez konta"}
+                        </td>
+                        <td className="px-4 py-2.5 w-10">
+                          <QuickAssignButton leagueId={leagueId} centerPlayerId={cp.id} />
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
     </div>
