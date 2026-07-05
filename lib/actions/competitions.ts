@@ -320,15 +320,14 @@ export async function joinCompetitionByCode(code: string) {
 
   const { data: token } = await supabase
     .from("invitation_tokens")
-    .select("id, competition_id, max_uses, used_count, expires_at, revoked_at")
+    .select("id, competition_id, max_uses, use_count, expires_at")
     .eq("code", code)
     .single()
 
   if (!token) return { error: "Nieprawidłowy kod zaproszenia." }
-  if (token.revoked_at) return { error: "Link zaproszenia został odwołany." }
   if (token.expires_at && new Date(token.expires_at) < new Date())
     return { error: "Link zaproszenia wygasł." }
-  if (token.max_uses !== null && token.used_count >= token.max_uses)
+  if (token.max_uses !== null && token.use_count >= token.max_uses)
     return { error: "Limit użyć linku wyczerpany." }
 
   const { data: existing } = await supabase
@@ -354,10 +353,10 @@ export async function joinCompetitionByCode(code: string) {
       .eq("id", existing.id)
   }
 
-  // Increment used_count
+  // Increment use_count
   await supabase
     .from("invitation_tokens")
-    .update({ used_count: (token.used_count ?? 0) + 1 })
+    .update({ use_count: (token.use_count ?? 0) + 1 })
     .eq("id", token.id)
 
   revalidatePath("/dashboard/player/leagues")

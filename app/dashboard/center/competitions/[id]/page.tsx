@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { Plus, Users, Link2, ChevronRight, Trophy } from "lucide-react"
+import { Plus, Users, Link2, ChevronRight, Trophy, Swords } from "lucide-react"
 import { getCompetitionPlayers, getCompetitionInvitations } from "@/lib/actions/competitions"
 import { CreateInvitationButton } from "./CreateInvitationButton"
 
@@ -45,8 +45,14 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
     .single()
   if (!comp) notFound()
 
-  const players = await getCompetitionPlayers(id)
-  const invitations = await getCompetitionInvitations(id)
+  const [players, invitations, tournamentsData, laddersData] = await Promise.all([
+    getCompetitionPlayers(id),
+    getCompetitionInvitations(id),
+    supabase.from("tournaments").select("id, name, status, format").eq("competition_id", id),
+    supabase.from("ladders").select("id, name").eq("competition_id", id),
+  ])
+  const tournaments = tournamentsData.data ?? []
+  const ladders = laddersData.data ?? []
   const seasons = (comp.seasons ?? []).sort((a: any, b: any) => a.status.localeCompare(b.status))
 
   return (
@@ -72,8 +78,80 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Seasons column */}
-        <div className="lg:col-span-2 space-y-4">
+        {/* Left column: seasons + tournaments + ladders */}
+        <div className="lg:col-span-2 space-y-6">
+
+          {/* Tournaments */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Trophy className="h-4 w-4" />
+                Turnieje ({tournaments.length})
+              </h2>
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/dashboard/center/competitions/${id}/tournaments/new`}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Nowy turniej
+                </Link>
+              </Button>
+            </div>
+            {tournaments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Brak turniejów w tych rozgrywkach.</p>
+            ) : (
+              <div className="space-y-2">
+                {tournaments.map((t: any) => (
+                  <Link key={t.id} href={`/dashboard/center/competitions/${id}/tournaments/${t.id}`}>
+                    <Card className="hover:shadow-sm transition-shadow cursor-pointer">
+                      <CardContent className="py-3 flex items-center justify-between">
+                        <span className="text-sm font-medium">{t.name}</span>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={t.status === "active" ? "default" : "secondary"} className="text-xs">
+                            {t.status === "draft" ? "Szkic" : t.status === "active" ? "W toku" : "Zakończony"}
+                          </Badge>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Ladders */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Swords className="h-4 w-4" />
+                Drabinki challenge ({ladders.length})
+              </h2>
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/dashboard/center/competitions/${id}/ladders/new`}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Nowa drabinka
+                </Link>
+              </Button>
+            </div>
+            {ladders.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Brak drabinek challenge.</p>
+            ) : (
+              <div className="space-y-2">
+                {ladders.map((l: any) => (
+                  <Link key={l.id} href={`/dashboard/center/competitions/${id}/ladders/${l.id}`}>
+                    <Card className="hover:shadow-sm transition-shadow cursor-pointer">
+                      <CardContent className="py-3 flex items-center justify-between">
+                        <span className="text-sm font-medium">{l.name}</span>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Seasons */}
+          <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">{t("seasons.title")}</h2>
             <Button variant="outline" size="sm" asChild>
@@ -128,7 +206,8 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
               ))}
             </div>
           )}
-        </div>
+          </div>{/* /seasons */}
+        </div>{/* /lg:col-span-2 */}
 
         {/* Sidebar: players + invitations */}
         <div className="space-y-4">

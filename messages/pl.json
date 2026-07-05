@@ -152,6 +152,8 @@
       "dashboard": "Dashboard",
       "myLeagues": "Moje ligi",
       "matches": "Mecze",
+      "tournaments": "Turnieje",
+      "ladders": "Drabinki",
       "ranking": "Ranking",
       "settings": "Ustawienia"
     },

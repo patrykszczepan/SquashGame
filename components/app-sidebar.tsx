@@ -15,6 +15,7 @@ import {
   PenLine,
   Medal,
   CreditCard,
+  Swords,
 } from "lucide-react"
 import {
   Sidebar,
@@ -60,6 +61,8 @@ export function AppSidebar({ role, displayName, email }: AppSidebarProps) {
     { title: tNav("player.dashboard"), icon: LayoutDashboard, url: "/dashboard/player" },
     { title: tNav("player.myLeagues"), icon: ClipboardList, url: "/dashboard/player/leagues" },
     { title: tNav("player.matches"), icon: Trophy, url: "/dashboard/player/matches" },
+    { title: tNav("player.tournaments"), icon: Trophy, url: "/dashboard/player/tournaments" },
+    { title: tNav("player.ladders"), icon: Swords, url: "/dashboard/player/ladders" },
     { title: tNav("player.ranking"), icon: Medal, url: "/dashboard/player/ranking" },
     { title: tNav("player.settings"), icon: Settings, url: "/dashboard/player/settings" },
   ]

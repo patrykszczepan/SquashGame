@@ -17,7 +17,7 @@ export default async function JoinPage({
   // Validate invitation token
   const { data: token } = await supabase
     .from("invitation_tokens")
-    .select("id, competition_id, competitions(name, centers(name)), max_uses, used_count, expires_at, revoked_at")
+    .select("id, competition_id, competitions(name, centers(name)), max_uses, use_count, expires_at")
     .eq("code", code)
     .single()
 
@@ -40,10 +40,9 @@ export default async function JoinPage({
   }
 
   const isExpired = token.expires_at && new Date(token.expires_at) < new Date()
-  const isRevoked = !!token.revoked_at
-  const isUsedUp = token.max_uses !== null && token.used_count >= token.max_uses
+  const isUsedUp = token.max_uses !== null && token.use_count >= token.max_uses
 
-  if (isExpired || isRevoked || isUsedUp) {
+  if (isExpired || isUsedUp) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="max-w-sm w-full">
