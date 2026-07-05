@@ -3,7 +3,13 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { generateRoundRobin } from "@/lib/schedule/generator"
-import { DEFAULT_SCORING_CONFIG, DEFAULT_MATCH_FORMAT } from "@/lib/types"
+import {
+  DEFAULT_SCORING_CONFIG,
+  DEFAULT_MATCH_FORMAT,
+  buildLeagueScoringConfig,
+  defaultAdvancedResults,
+  type SeasonScoringConfig,
+} from "@/lib/types"
 import { nanoid } from "nanoid"
 
 // ---- helpers ----------------------------------------------------------------
@@ -78,11 +84,12 @@ export async function createSeason(form: {
   name: string
   start_date?: string
   end_date?: string
+  sets_to_win?: number
+  scoring_config?: SeasonScoringConfig
 }) {
   const center = await getMyCenter()
   if (!center) return { error: "Brak centrum." }
 
-  // Verify competition belongs to this center
   const supabase = await createClient()
   const { data: comp } = await supabase
     .from("competitions")
@@ -92,6 +99,12 @@ export async function createSeason(form: {
     .single()
   if (!comp) return { error: "Brak dostępu." }
 
+  const setsToWin = form.sets_to_win ?? 3
+  const scoringConfig: SeasonScoringConfig = form.scoring_config ?? {
+    type: "advanced",
+    results: defaultAdvancedResults(setsToWin),
+  }
+
   const { data, error } = await supabase
     .from("seasons")
     .insert({
@@ -100,6 +113,9 @@ export async function createSeason(form: {
       start_date: form.start_date || null,
       end_date: form.end_date || null,
       status: "draft",
+      sets_to_win: setsToWin,
+      scoring_type: scoringConfig.type,
+      default_scoring_config: scoringConfig,
     })
     .select("id")
     .single()
@@ -139,13 +155,21 @@ export async function createLeague(form: {
 
   const supabase = await createClient()
 
-  // Get the default global scoring template
-  const { data: template } = await supabase
-    .from("scoring_templates")
-    .select("id, config")
-    .eq("is_global", true)
-    .limit(1)
+  // Read season's match format and scoring config
+  const { data: season } = await supabase
+    .from("seasons")
+    .select("sets_to_win, scoring_type, default_scoring_config")
+    .eq("id", form.season_id)
     .single()
+
+  const setsToWin = season?.sets_to_win ?? 3
+  const seasonScoringConfig: SeasonScoringConfig = (season?.default_scoring_config as SeasonScoringConfig) ?? {
+    type: "advanced",
+    results: defaultAdvancedResults(setsToWin),
+  }
+
+  const matchFormat = { type: "race_to" as const, sets_to_win: setsToWin }
+  const leagueScoringConfig = buildLeagueScoringConfig(setsToWin, seasonScoringConfig)
 
   const { data: league, error: leagueErr } = await supabase
     .from("leagues")
@@ -154,7 +178,7 @@ export async function createLeague(form: {
       name: form.name.trim(),
       level: form.level,
       round_robin_mode: form.round_robin_mode,
-      match_format: DEFAULT_MATCH_FORMAT,
+      match_format: matchFormat,
       promotions: form.promotions ?? null,
       demotions: form.demotions ?? null,
     })
@@ -163,21 +187,19 @@ export async function createLeague(form: {
 
   if (leagueErr) return { error: leagueErr.message }
 
-  // Create scoring config snapshot
-  const configData = template?.config ?? DEFAULT_SCORING_CONFIG
+  // Create scoring config snapshot from season's config
   const { data: scoringConfig, error: scErr } = await supabase
     .from("scoring_configs")
     .insert({
       league_id: league.id,
-      template_id: template?.id ?? null,
-      config: configData,
+      template_id: null,
+      config: leagueScoringConfig,
     })
     .select("id")
     .single()
 
   if (scErr) return { error: scErr.message }
 
-  // Link scoring config to league
   await supabase
     .from("leagues")
     .update({ scoring_config_id: scoringConfig.id })

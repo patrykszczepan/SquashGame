@@ -22,13 +22,12 @@ export function SubmitResultCard({ match, currentUserId, nameMap }: Props) {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
-  const format = match.leagues?.match_format ?? { type: "best_of", sets: 5 }
-  const totalSets = format.sets ?? 5
-  const winsNeeded = Math.ceil(totalSets / 2)
+  const format = match.leagues?.match_format ?? { type: "race_to", sets_to_win: 3 }
+  const winsNeeded: number = format.sets_to_win ?? Math.ceil((format.sets ?? 5) / 2)
+  const maxSets = winsNeeded * 2 - 1
 
-  // Initialize sets: number of sets needed (up to max)
   const [sets, setSets] = useState<Array<{ points_a: string; points_b: string }>>(
-    Array.from({ length: winsNeeded * 2 - 1 }, () => ({ points_a: "", points_b: "" }))
+    Array.from({ length: maxSets }, () => ({ points_a: "", points_b: "" }))
   )
 
   const opponentId = match.player_a_id === currentUserId ? match.player_b_id : match.player_a_id

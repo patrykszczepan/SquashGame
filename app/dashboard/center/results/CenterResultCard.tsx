@@ -20,10 +20,9 @@ export function CenterResultCard({ match, nameMap }: Props) {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
-  const format = match.leagues?.match_format ?? { type: "best_of", sets: 5 }
-  const totalSets = format.sets ?? 5
-  const winsNeeded = Math.ceil(totalSets / 2)
-  const maxSets = totalSets
+  const format = match.leagues?.match_format ?? { type: "race_to", sets_to_win: 3 }
+  const winsNeeded: number = format.sets_to_win ?? Math.ceil((format.sets ?? 5) / 2)
+  const maxSets = winsNeeded * 2 - 1
 
   const [sets, setSets] = useState<Array<{ points_a: string; points_b: string }>>(
     Array.from({ length: maxSets }, () => ({ points_a: "", points_b: "" }))

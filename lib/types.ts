@@ -22,13 +22,13 @@ export type TiebreakerCriterion =
   | "matches_played"
 
 export interface MatchFormat {
-  type: "best_of"
-  sets: number // best-of X — wins needed = ceil(X/2)
+  type: "race_to"
+  sets_to_win: number // first player to win this many sets wins the match
 }
 
 export interface ScoringConfig {
-  win_by_sets: Record<string, number>
-  loss_by_sets: Record<string, number>
+  win_by_sets: Record<string, number>  // "W:L" → winner points
+  loss_by_sets: Record<string, number> // "L:W" → loser points
   set_point: { enabled: boolean; value: number }
   participation_point: { enabled: boolean; value: number }
   walkover: { winner: number; loser: number }
@@ -36,17 +36,64 @@ export interface ScoringConfig {
   tiebreaker: TiebreakerCriterion[]
 }
 
-export const DEFAULT_SCORING_CONFIG: ScoringConfig = {
-  win_by_sets: { "3:0": 5, "3:1": 4, "3:2": 3 },
-  loss_by_sets: { "0:3": 0, "1:3": 1, "2:3": 2 },
-  set_point: { enabled: false, value: 0 },
-  participation_point: { enabled: false, value: 0 },
-  walkover: { winner: 5, loser: 0 },
-  not_played: { a: 0, b: 0 },
-  tiebreaker: ["points", "head_to_head", "set_ratio", "small_points", "matches_played"],
+// Season-level scoring config (user-facing format)
+export interface SimpleSeasonScoring {
+  type: "simple"
+  win: number
+  loss: number
 }
 
-export const DEFAULT_MATCH_FORMAT: MatchFormat = { type: "best_of", sets: 5 }
+export interface AdvancedSeasonScoring {
+  type: "advanced"
+  results: Record<string, [number, number]> // "W:L" → [winner_pts, loser_pts]
+}
+
+export type SeasonScoringConfig = SimpleSeasonScoring | AdvancedSeasonScoring
+
+export function defaultAdvancedResults(setsToWin: number): Record<string, [number, number]> {
+  const results: Record<string, [number, number]> = {}
+  for (let loser = 0; loser < setsToWin; loser++) {
+    results[`${setsToWin}:${loser}`] = [setsToWin * 2 - loser, loser]
+  }
+  return results
+}
+
+export function buildLeagueScoringConfig(setsToWin: number, config: SeasonScoringConfig): ScoringConfig {
+  const win_by_sets: Record<string, number> = {}
+  const loss_by_sets: Record<string, number> = {}
+
+  if (config.type === "simple") {
+    for (let loser = 0; loser < setsToWin; loser++) {
+      win_by_sets[`${setsToWin}:${loser}`] = config.win
+      loss_by_sets[`${loser}:${setsToWin}`] = config.loss
+    }
+  } else {
+    for (const [key, [winnerPts, loserPts]] of Object.entries(config.results)) {
+      const parts = key.split(":")
+      win_by_sets[key] = winnerPts
+      loss_by_sets[`${parts[1]}:${parts[0]}`] = loserPts
+    }
+  }
+
+  const maxWinPts = Math.max(...Object.values(win_by_sets), 0)
+
+  return {
+    win_by_sets,
+    loss_by_sets,
+    set_point: { enabled: false, value: 0 },
+    participation_point: { enabled: false, value: 0 },
+    walkover: { winner: maxWinPts, loser: 0 },
+    not_played: { a: 0, b: 0 },
+    tiebreaker: ["points", "head_to_head", "set_ratio", "small_points", "matches_played"],
+  }
+}
+
+export const DEFAULT_SCORING_CONFIG: ScoringConfig = buildLeagueScoringConfig(3, {
+  type: "advanced",
+  results: { "3:0": [6, 0], "3:1": [5, 1], "3:2": [4, 2] },
+})
+
+export const DEFAULT_MATCH_FORMAT: MatchFormat = { type: "race_to", sets_to_win: 3 }
 
 export interface Profile {
   id: string
@@ -129,6 +176,9 @@ export interface Season {
   end_date?: string
   default_promotions: number
   default_demotions: number
+  sets_to_win: number
+  scoring_type: "simple" | "advanced"
+  default_scoring_config: SeasonScoringConfig | null
   created_at: string
   updated_at: string
 }
