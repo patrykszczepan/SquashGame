@@ -10,11 +10,15 @@ export function CreateInvitationButton({ competitionId }: { competitionId: strin
   const [loading, setLoading] = useState(false)
   const [link, setLink] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleCreate() {
     setLoading(true)
+    setError(null)
     const result = await createInvitationLink(competitionId)
-    if (!result.error && result.code) {
+    if (result.error) {
+      setError(result.error)
+    } else if (result.code) {
       setLink(`${window.location.origin}/join/${result.code}`)
     }
     setLoading(false)
@@ -42,15 +46,18 @@ export function CreateInvitationButton({ competitionId }: { competitionId: strin
   }
 
   return (
-    <Button
-      size="sm"
-      variant="outline"
-      className="w-full"
-      onClick={handleCreate}
-      disabled={loading}
-    >
-      <Link2 className="h-4 w-4 mr-2" />
-      {loading ? "Generowanie..." : "Wygeneruj link zaproszenia"}
-    </Button>
+    <div className="space-y-2">
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      <Button
+        size="sm"
+        variant="outline"
+        className="w-full"
+        onClick={handleCreate}
+        disabled={loading}
+      >
+        <Link2 className="h-4 w-4 mr-2" />
+        {loading ? "Generowanie..." : "Wygeneruj link zaproszenia"}
+      </Button>
+    </div>
   )
 }

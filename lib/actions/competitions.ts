@@ -466,12 +466,21 @@ export async function getCompetitionInvitations(competitionId: string) {
 
 export async function getCompetitionPlayers(competitionId: string) {
   const supabase = await createClient()
-  const { data } = await supabase
+  const { data: cps } = await supabase
     .from("competition_players")
-    .select("*, players!inner(first_name, last_name, phone)")
+    .select("id, competition_id, profile_id, invitation_status, invited_at, accepted_at")
     .eq("competition_id", competitionId)
     .order("invited_at", { ascending: false })
-  return data ?? []
+  if (!cps?.length) return []
+
+  const profileIds = cps.map((cp) => cp.profile_id)
+  const { data: players } = await supabase
+    .from("players")
+    .select("profile_id, first_name, last_name, phone")
+    .in("profile_id", profileIds)
+
+  const playerMap = new Map((players ?? []).map((p) => [p.profile_id, p]))
+  return cps.map((cp) => ({ ...cp, players: playerMap.get(cp.profile_id) ?? null }))
 }
 
 // ---- join by invitation code (player) ---------------------------------------
