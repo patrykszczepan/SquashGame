@@ -1,15 +1,24 @@
 -- ============================================================
--- Schema Patch v4 — fix is_admin() to check super_admin role
+-- Schema Patch v4 — fix role constraint + is_admin()
 -- Run in Supabase SQL Editor
 -- ============================================================
 
--- FIX: is_admin() checked for role = 'admin' but the codebase uses 'super_admin'
-create or replace function public.is_admin()
-returns boolean
-language sql security definer stable
-as $$
-  select exists (
-    select 1 from public.profiles
-    where id = auth.uid() and role = 'super_admin'
+-- FIX 1: profiles role constraint doesn't allow 'super_admin'
+-- Drop old constraint and add new one
+ALTER TABLE public.profiles
+  DROP CONSTRAINT IF EXISTS profiles_role_check;
+
+ALTER TABLE public.profiles
+  ADD CONSTRAINT profiles_role_check
+  CHECK (role IN ('super_admin', 'center', 'player'));
+
+-- FIX 2: is_admin() was checking 'admin' but codebase uses 'super_admin'
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean
+LANGUAGE sql SECURITY DEFINER STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'super_admin'
   );
 $$;

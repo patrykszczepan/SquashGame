@@ -38,7 +38,7 @@ const PASSWORD = "Test1234!"
 export function SetupForm() {
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
-  const [results, setResults] = useState<{ email: string; status: string; error?: string }[] | null>(null)
+  const [results, setResults] = useState<{ email: string; status: string; details: string[] }[] | null>(null)
   const [error, setError] = useState("")
   const [done, setDone] = useState(false)
 
@@ -115,15 +115,21 @@ export function SetupForm() {
               </CardHeader>
               <CardContent className="space-y-2">
                 {results?.map((r) => (
-                  <div key={r.email} className="flex items-center gap-3 text-sm">
-                    {r.error ? (
-                      <X className="h-4 w-4 text-destructive shrink-0" />
-                    ) : (
-                      <Check className="h-4 w-4 text-green-600 shrink-0" />
-                    )}
-                    <span className="font-mono text-xs">{r.email}</span>
-                    <span className="text-muted-foreground">{r.status}</span>
-                    {r.error && <span className="text-destructive text-xs">{r.error}</span>}
+                  <div key={r.email} className="space-y-1">
+                    <div className="flex items-center gap-3 text-sm">
+                      {r.status === "OK" ? (
+                        <Check className="h-4 w-4 text-green-600 shrink-0" />
+                      ) : (
+                        <X className="h-4 w-4 text-destructive shrink-0" />
+                      )}
+                      <span className="font-mono text-xs">{r.email}</span>
+                      <span className="text-muted-foreground">{r.status}</span>
+                    </div>
+                    {r.details?.map((d, i) => (
+                      <p key={i} className={`text-xs ml-7 font-mono ${d.includes("ERROR") ? "text-destructive" : "text-muted-foreground"}`}>
+                        {d}
+                      </p>
+                    ))}
                   </div>
                 ))}
               </CardContent>

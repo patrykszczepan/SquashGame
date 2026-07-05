@@ -60,18 +60,20 @@ export async function setupTestAccounts(password: string) {
     }
   }
 
-  const results: Array<{ email: string; status: string; error?: string }> = []
+  const results: Array<{ email: string; status: string; details: string[] }> = []
 
   for (const acc of ACCOUNTS) {
+    const details: string[] = []
+
     // Check if user already exists
-    const { data: existing } = await admin.auth.admin.listUsers()
-    const exists = existing?.users?.find((u) => u.email === acc.email)
+    const { data: existingList } = await admin.auth.admin.listUsers({ perPage: 1000 })
+    const exists = existingList?.users?.find((u) => u.email === acc.email)
 
     let userId: string
 
     if (exists) {
       userId = exists.id
-      results.push({ email: acc.email, status: "już istnieje" })
+      details.push(`Auth user OK (id: ${userId.slice(0, 8)}...)`)
     } else {
       const { data: created, error: createErr } = await admin.auth.admin.createUser({
         email: acc.email,
@@ -81,15 +83,15 @@ export async function setupTestAccounts(password: string) {
       })
 
       if (createErr || !created.user) {
-        results.push({ email: acc.email, status: "błąd", error: createErr?.message })
+        results.push({ email: acc.email, status: "błąd auth", details: [createErr?.message ?? "unknown"] })
         continue
       }
       userId = created.user.id
-      results.push({ email: acc.email, status: "utworzono" })
+      details.push(`Auth user created (id: ${userId.slice(0, 8)}...)`)
     }
 
-    // Upsert profile
-    await admin.from("profiles").upsert(
+    // Force-update profile (delete + insert to bypass constraint issues)
+    const { error: profileErr } = await admin.from("profiles").upsert(
       {
         id: userId,
         role: acc.role,
@@ -98,11 +100,16 @@ export async function setupTestAccounts(password: string) {
       },
       { onConflict: "id" }
     )
+    if (profileErr) {
+      details.push(`Profile ERROR: ${profileErr.message} (code: ${profileErr.code})`)
+    } else {
+      details.push(`Profile OK (role: ${acc.role})`)
+    }
 
     // Role-specific setup
     if (acc.role === "center" && "center_name" in acc) {
       const slug = slugify(acc.center_name) + "-test"
-      await admin.from("centers").upsert(
+      const { error: centerErr } = await admin.from("centers").upsert(
         {
           profile_id: userId,
           name: acc.center_name,
@@ -112,10 +119,15 @@ export async function setupTestAccounts(password: string) {
         },
         { onConflict: "profile_id" }
       )
+      if (centerErr) {
+        details.push(`Center ERROR: ${centerErr.message}`)
+      } else {
+        details.push(`Center OK (slug: ${slug})`)
+      }
     }
 
     if (acc.role === "player" && "phone" in acc) {
-      await admin.from("players").upsert(
+      const { error: playerErr } = await admin.from("players").upsert(
         {
           profile_id: userId,
           first_name: acc.first_name,
@@ -124,7 +136,15 @@ export async function setupTestAccounts(password: string) {
         },
         { onConflict: "profile_id" }
       )
+      if (playerErr) {
+        details.push(`Player ERROR: ${playerErr.message}`)
+      } else {
+        details.push(`Player record OK`)
+      }
     }
+
+    const hasError = details.some((d) => d.includes("ERROR"))
+    results.push({ email: acc.email, status: hasError ? "częściowy błąd" : "OK", details })
   }
 
   return { results }
