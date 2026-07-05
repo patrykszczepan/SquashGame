@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { generateRoundRobin } from "@/lib/schedule/generator"
 import {
@@ -490,7 +490,9 @@ export async function joinCompetitionByCode(code: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Nie jesteś zalogowany." }
 
-  const { data: token } = await supabase
+  const admin = createAdminClient()
+
+  const { data: token } = await admin
     .from("invitation_tokens")
     .select("id, competition_id, max_uses, use_count, expires_at")
     .eq("code", code)
@@ -502,7 +504,7 @@ export async function joinCompetitionByCode(code: string) {
   if (token.max_uses !== null && token.use_count >= token.max_uses)
     return { error: "Limit użyć linku wyczerpany." }
 
-  const { data: existing } = await supabase
+  const { data: existing } = await admin
     .from("competition_players")
     .select("id")
     .eq("competition_id", token.competition_id)
@@ -510,7 +512,7 @@ export async function joinCompetitionByCode(code: string) {
     .single()
 
   if (!existing) {
-    const { error: insertErr } = await supabase.from("competition_players").insert({
+    const { error: insertErr } = await admin.from("competition_players").insert({
       competition_id: token.competition_id,
       profile_id: user.id,
       invitation_status: "accepted",
@@ -519,7 +521,7 @@ export async function joinCompetitionByCode(code: string) {
     })
     if (insertErr) return { error: insertErr.message }
   } else {
-    await supabase
+    await admin
       .from("competition_players")
       .update({ invitation_status: "accepted", accepted_at: new Date().toISOString() })
       .eq("id", existing.id)

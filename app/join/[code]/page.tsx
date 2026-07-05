@@ -7,10 +7,13 @@ import Link from "next/link"
 
 export default async function JoinPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ code: string }>
+  searchParams: Promise<{ error?: string }>
 }) {
   const { code } = await params
+  const { error: joinError } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -167,13 +170,13 @@ export default async function JoinPage({
     )
   }
 
-  // Auto-join via server action form
   async function handleJoin() {
     "use server"
     const result = await joinCompetitionByCode(code)
-    if (!result.error) {
-      redirect("/dashboard/player/leagues")
+    if (result.error) {
+      redirect(`/join/${code}?error=${encodeURIComponent(result.error)}`)
     }
+    redirect("/dashboard/player/leagues")
   }
 
   return (
@@ -188,6 +191,9 @@ export default async function JoinPage({
         </CardHeader>
         <CardContent>
           <form action={handleJoin} className="space-y-3">
+            {joinError && (
+              <p className="text-sm text-destructive">{joinError}</p>
+            )}
             <Button type="submit" className="w-full">
               Dołącz do rozgrywek
             </Button>
