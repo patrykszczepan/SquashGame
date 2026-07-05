@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { joinCompetitionByCode } from "@/lib/actions/competitions"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -14,12 +14,33 @@ export default async function JoinPage({
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Validate invitation token
-  const { data: token } = await supabase
+  // Use admin client — token lookup must work for unauthenticated users too
+  const admin = createAdminClient()
+  const { data: token } = await admin
     .from("invitation_tokens")
-    .select("id, competition_id, competitions(name, centers(name)), max_uses, use_count, expires_at")
+    .select("id, competition_id, max_uses, use_count, expires_at")
     .eq("code", code)
     .single()
+
+  // Fetch competition + center names separately (avoid nested PostgREST join)
+  let compName = "rozgrywki"
+  let centerName = "centrum squash"
+  if (token) {
+    const { data: comp } = await admin
+      .from("competitions")
+      .select("name, center_id")
+      .eq("id", token.competition_id)
+      .single()
+    if (comp) {
+      compName = comp.name
+      const { data: center } = await admin
+        .from("centers")
+        .select("name")
+        .eq("id", comp.center_id)
+        .single()
+      if (center) centerName = center.name
+    }
+  }
 
   if (!token) {
     return (
@@ -61,10 +82,6 @@ export default async function JoinPage({
       </div>
     )
   }
-
-  const comp = token.competitions as any
-  const centerName = comp?.centers?.name ?? "centrum squash"
-  const compName = comp?.name ?? "rozgrywki"
 
   // Not logged in — send to register, preserve code in URL
   if (!user) {
