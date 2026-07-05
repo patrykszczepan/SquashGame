@@ -169,10 +169,26 @@
     "newCompetition": "Nowe rozgrywki",
     "noCompetitions": "Brak rozgrywek",
     "noCompetitionsHint": "Utwórz pierwsze rozgrywki, aby zarządzać ligami.",
-    "seasons": "Sezony",
-    "noSeasons": "Brak sezonów",
+    "empty": {
+      "title": "Brak rozgrywek",
+      "description": "Utwórz pierwsze rozgrywki, aby zacząć zarządzać ligami i zawodnikami."
+    },
+    "draftSeasons": "{count} szkicowych sezonów",
     "activeSeason": "Aktywny sezon",
-    "players": "zawodników",
+    "noSeasons": "Brak sezonów",
+    "seasons": {
+      "title": "Sezony",
+      "new": "Nowy sezon",
+      "empty": "Brak sezonów. Utwórz pierwszy sezon."
+    },
+    "players": {
+      "title": "Zawodnicy",
+      "empty": "Brak zawodników w puli."
+    },
+    "invitations": {
+      "title": "Zaproszenia",
+      "empty": "Brak aktywnych linków zaproszenia."
+    },
     "inviteLink": "Link zaproszenia",
     "generateInviteLink": "Generuj link",
     "copyLink": "Kopiuj",
