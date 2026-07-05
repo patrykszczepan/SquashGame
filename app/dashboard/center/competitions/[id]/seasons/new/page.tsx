@@ -14,7 +14,7 @@ import Link from "next/link"
 
 type ScoringType = "simple" | "advanced"
 
-const SETS_OPTIONS = [2, 3, 5]
+const SETS_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
 export default function NewSeasonPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: competitionId } = use(params)
