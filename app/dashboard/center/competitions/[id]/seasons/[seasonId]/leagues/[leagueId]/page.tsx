@@ -89,7 +89,7 @@ export default async function LeagueDetailPage({
         .order("number"),
       supabase
         .from("competition_players")
-        .select("profile_id, players!inner(first_name, last_name)")
+        .select("profile_id")
         .eq("competition_id", season.competition_id)
         .eq("invitation_status", "accepted"),
       supabase
@@ -110,7 +110,17 @@ export default async function LeagueDetailPage({
   }))
 
   const rounds = (roundsRes.data ?? []) as any[]
-  const compPlayers = compPlayersRes.data ?? []
+
+  // Fetch player names for competition players separately
+  const compPlayerIds = (compPlayersRes.data ?? []).map((cp) => cp.profile_id).filter(Boolean) as string[]
+  const { data: compPlayerNames } = compPlayerIds.length > 0
+    ? await supabase.from("players").select("profile_id, first_name, last_name").in("profile_id", compPlayerIds)
+    : { data: [] as { profile_id: string; first_name: string; last_name: string }[] }
+  const compPlayerNamesMap = new Map((compPlayerNames ?? []).map((p) => [p.profile_id, p]))
+  const compPlayers = (compPlayersRes.data ?? []).map((cp) => ({
+    profile_id: cp.profile_id,
+    players: compPlayerNamesMap.get(cp.profile_id) ?? null,
+  }))
   const centerPlayersRaw = availableCenterRes.data ?? []
 
   const leagueProfileIds = new Set(lpBase.map((lp) => lp.profile_id).filter(Boolean))
