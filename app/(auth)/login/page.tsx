@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
@@ -43,6 +44,8 @@ function GoogleIcon() {
 
 export default function LoginPage() {
   const t = useTranslations("auth.login")
+  const searchParams = useSearchParams()
+  const joinCode = searchParams.get("join") ?? undefined
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -54,7 +57,7 @@ export default function LoginPage() {
     setError("")
     setLoading(true)
 
-    const result = await loginAction({ email, password })
+    const result = await loginAction({ email, password, joinCode })
 
     if (result?.error) {
       setError(result.error)

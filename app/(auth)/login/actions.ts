@@ -6,6 +6,7 @@ import { redirect } from "next/navigation"
 export async function loginAction(data: {
   email: string
   password: string
+  joinCode?: string
 }): Promise<{ error: string } | void> {
   const supabase = await createClient()
 
@@ -18,5 +19,8 @@ export async function loginAction(data: {
     return { error: "Nieprawidłowy email lub hasło." }
   }
 
+  if (data.joinCode) {
+    redirect(`/join/${data.joinCode}`)
+  }
   redirect("/dashboard")
 }
