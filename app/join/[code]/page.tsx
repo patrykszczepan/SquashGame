@@ -116,7 +116,7 @@ export default async function JoinPage({
   const { data: player } = await supabase
     .from("players")
     .select("id")
-    .eq("id", user.id)
+    .eq("profile_id", user.id)
     .single()
 
   if (!player) {
