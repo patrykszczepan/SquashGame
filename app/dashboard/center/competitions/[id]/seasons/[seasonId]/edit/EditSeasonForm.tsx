@@ -304,39 +304,48 @@ export function EditSeasonForm({ competitionId, competitionName, season }: Props
                 <p className="text-xs text-muted-foreground">
                   Wyniki odwrotne (przegrane) generowane automatycznie.
                 </p>
-                <div className="rounded-md border overflow-hidden">
-                  <table className="w-full text-sm">
+                <div className="rounded-lg border overflow-hidden">
+                  <table className="w-full text-sm table-fixed">
+                    <colgroup>
+                      <col className="w-1/3" />
+                      <col className="w-1/3" />
+                      <col className="w-1/3" />
+                    </colgroup>
                     <thead>
                       <tr className="bg-muted border-b">
-                        <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Wynik</th>
-                        <th className="px-4 py-2.5 text-center font-medium">Zwycięzca (pkt)</th>
-                        <th className="px-4 py-2.5 text-center font-medium">Przegrany (pkt)</th>
+                        <th className="py-3 text-center font-semibold text-foreground">Wynik</th>
+                        <th className="py-3 text-center font-semibold text-foreground">Zwycięzca</th>
+                        <th className="py-3 text-center font-semibold text-foreground">Przegrany</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {resultKeys.map((key, idx) => {
+                    <tbody className="divide-y">
+                      {resultKeys.map((key) => {
                         const [winPts, lossPts] = advancedResults[key] ?? [0, 0]
                         return (
-                          <tr key={key} className={idx % 2 === 0 ? "bg-background" : "bg-muted/30"}>
-                            <td className="px-4 py-2 font-mono font-semibold text-base">{key}</td>
-                            <td className="px-3 py-1.5">
+                          <tr key={key} className="hover:bg-muted/20 transition-colors">
+                            <td className="py-3 text-center">
+                              <span className="inline-flex items-center justify-center font-mono font-bold text-base bg-primary/10 text-primary rounded-md px-4 py-1 min-w-[4rem]">
+                                {key}
+                              </span>
+                            </td>
+                            <td className="py-2 text-center">
                               <Input
                                 type="number"
                                 min="0"
                                 value={winPts}
                                 onChange={(e) => setResultValue(key, 0, e.target.value)}
                                 disabled={readonly}
-                                className="text-center h-8 w-20 mx-auto"
+                                className="text-center h-9 w-24 mx-auto"
                               />
                             </td>
-                            <td className="px-3 py-1.5">
+                            <td className="py-2 text-center">
                               <Input
                                 type="number"
                                 min="0"
                                 value={lossPts}
                                 onChange={(e) => setResultValue(key, 1, e.target.value)}
                                 disabled={readonly}
-                                className="text-center h-8 w-20 mx-auto"
+                                className="text-center h-9 w-24 mx-auto"
                               />
                             </td>
                           </tr>

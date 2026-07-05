@@ -247,48 +247,46 @@ export default function NewSeasonPage({ params }: { params: Promise<{ id: string
                 <p className="text-xs text-muted-foreground">
                   Ustaw punkty dla każdego możliwego wyniku. Wyniki odwrotne (przegrane) tworzone automatycznie.
                 </p>
-                <div className="rounded-md border overflow-hidden">
-                  <table className="w-full text-sm">
+                <div className="rounded-lg border overflow-hidden">
+                  <table className="w-full text-sm table-fixed">
+                    <colgroup>
+                      <col className="w-1/3" />
+                      <col className="w-1/3" />
+                      <col className="w-1/3" />
+                    </colgroup>
                     <thead>
                       <tr className="bg-muted border-b">
-                        <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
-                          Wynik
-                        </th>
-                        <th className="px-4 py-2.5 text-center font-medium">
-                          Zwycięzca (pkt)
-                        </th>
-                        <th className="px-4 py-2.5 text-center font-medium">
-                          Przegrany (pkt)
-                        </th>
+                        <th className="py-3 text-center font-semibold text-foreground">Wynik</th>
+                        <th className="py-3 text-center font-semibold text-foreground">Zwycięzca</th>
+                        <th className="py-3 text-center font-semibold text-foreground">Przegrany</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {resultKeys.map((key, idx) => {
+                    <tbody className="divide-y">
+                      {resultKeys.map((key) => {
                         const [winPts, lossPts] = advancedResults[key] ?? [0, 0]
                         return (
-                          <tr
-                            key={key}
-                            className={idx % 2 === 0 ? "bg-background" : "bg-muted/30"}
-                          >
-                            <td className="px-4 py-2 font-mono font-semibold text-base">
-                              {key}
+                          <tr key={key} className="hover:bg-muted/20 transition-colors">
+                            <td className="py-3 text-center">
+                              <span className="inline-flex items-center justify-center font-mono font-bold text-base bg-primary/10 text-primary rounded-md px-4 py-1 min-w-[4rem]">
+                                {key}
+                              </span>
                             </td>
-                            <td className="px-3 py-1.5">
+                            <td className="py-2 text-center">
                               <Input
                                 type="number"
                                 min="0"
                                 value={winPts}
                                 onChange={(e) => setResultValue(key, 0, e.target.value)}
-                                className="text-center h-8 w-20 mx-auto"
+                                className="text-center h-9 w-24 mx-auto"
                               />
                             </td>
-                            <td className="px-3 py-1.5">
+                            <td className="py-2 text-center">
                               <Input
                                 type="number"
                                 min="0"
                                 value={lossPts}
                                 onChange={(e) => setResultValue(key, 1, e.target.value)}
-                                className="text-center h-8 w-20 mx-auto"
+                                className="text-center h-9 w-24 mx-auto"
                               />
                             </td>
                           </tr>
@@ -298,8 +296,7 @@ export default function NewSeasonPage({ params }: { params: Promise<{ id: string
                   </table>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Przykład: wynik {setsToWin}:{setsToWin - 1} to najcięższa wygrana — zwycięzca dostaje
-                  mniej niż za {setsToWin}:0, co premiuje walkę o każdego gema.
+                  Wyniki odwrotne (przegrane) generowane automatycznie. Im trudniejsza wygrana, tym mniej punktów.
                 </p>
               </div>
             )}
