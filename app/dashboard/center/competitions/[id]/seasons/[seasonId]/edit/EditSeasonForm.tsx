@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
 
 type ScoringType = "simple" | "advanced"
-const SETS_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+const SETS_QUICK = [1, 2, 3, 4, 5]
 
 interface Props {
   competitionId: string
@@ -198,25 +198,43 @@ export function EditSeasonForm({ competitionId, competitionName, season }: Props
             <CardDescription>Do ilu zwycięskich gemów grany jest mecz.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex gap-2">
-              {SETS_OPTIONS.map((n) => (
+            <div className="flex gap-2 items-center">
+              {SETS_QUICK.map((n) => (
                 <button
                   key={n}
                   type="button"
                   onClick={() => !readonly && handleSetsToWinChange(n)}
                   disabled={readonly}
-                  className={`px-6 py-2 rounded-md border text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                  className={`flex-1 py-2 rounded-md border text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                     setsToWin === n
                       ? "bg-primary text-primary-foreground border-primary"
                       : "bg-background text-foreground border-border hover:bg-muted"
                   }`}
                 >
-                  Do {n}
+                  {n}
                 </button>
               ))}
+              <input
+                type="number"
+                min="1"
+                max="99"
+                value={setsToWin > 5 ? setsToWin : ""}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10)
+                  if (!isNaN(n) && n >= 1 && !readonly) handleSetsToWinChange(n)
+                }}
+                placeholder="inny"
+                disabled={readonly}
+                className={`flex-1 py-2 px-2 rounded-md border text-sm text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                  setsToWin > 5
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-background"
+                } focus:outline-none focus:ring-2 focus:ring-ring`}
+              />
             </div>
             <p className="text-xs text-muted-foreground">
-              Możliwe wyniki: <span className="font-mono">{resultKeys.join(", ")}</span> i odwrotne.
+              Mecz do <strong>{setsToWin}</strong> zwycięskich gemów — możliwe wyniki:{" "}
+              <span className="font-mono">{resultKeys.join(", ")}</span> i odwrotne.
             </p>
             {season.status === "active" && (
               <p className="text-xs text-amber-600">

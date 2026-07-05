@@ -14,7 +14,7 @@ import Link from "next/link"
 
 type ScoringType = "simple" | "advanced"
 
-const SETS_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+const SETS_QUICK = [1, 2, 3, 4, 5]
 
 export default function NewSeasonPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: competitionId } = use(params)
@@ -148,28 +148,41 @@ export default function NewSeasonPage({ params }: { params: Promise<{ id: string
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex gap-2">
-              {SETS_OPTIONS.map((n) => (
+            <div className="flex gap-2 items-center">
+              {SETS_QUICK.map((n) => (
                 <button
                   key={n}
                   type="button"
                   onClick={() => handleSetsToWinChange(n)}
-                  className={`px-6 py-2 rounded-md border text-sm font-medium transition-colors ${
+                  className={`flex-1 py-2 rounded-md border text-sm font-medium transition-colors ${
                     setsToWin === n
                       ? "bg-primary text-primary-foreground border-primary"
                       : "bg-background text-foreground border-border hover:bg-muted"
                   }`}
                 >
-                  Do {n}
+                  {n}
                 </button>
               ))}
+              <input
+                type="number"
+                min="1"
+                max="99"
+                value={setsToWin > 5 ? setsToWin : ""}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10)
+                  if (!isNaN(n) && n >= 1) handleSetsToWinChange(n)
+                }}
+                placeholder="inny"
+                className={`flex-1 py-2 px-2 rounded-md border text-sm text-center transition-colors ${
+                  setsToWin > 5
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-background"
+                } focus:outline-none focus:ring-2 focus:ring-ring`}
+              />
             </div>
             <p className="text-xs text-muted-foreground">
-              Możliwe wyniki meczu:{" "}
-              <span className="font-mono">
-                {resultKeys.join(", ")}
-              </span>{" "}
-              i odpowiednie odwrotne.
+              Mecz do <strong>{setsToWin}</strong> zwycięskich gemów — możliwe wyniki:{" "}
+              <span className="font-mono">{resultKeys.join(", ")}</span> i odwrotne.
             </p>
           </CardContent>
         </Card>
