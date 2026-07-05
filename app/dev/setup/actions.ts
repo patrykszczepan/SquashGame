@@ -117,12 +117,12 @@ export async function setupTestAccounts(password: string) {
     if (acc.role === "player" && "phone" in acc) {
       await admin.from("players").upsert(
         {
-          id: userId,
+          profile_id: userId,
           first_name: acc.first_name,
           last_name: acc.last_name,
           phone: acc.phone,
         },
-        { onConflict: "id" }
+        { onConflict: "profile_id" }
       )
     }
   }

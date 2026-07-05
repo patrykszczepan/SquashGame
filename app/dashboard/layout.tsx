@@ -38,7 +38,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     const { data: player } = await supabase
       .from("players")
       .select("first_name, last_name")
-      .eq("id", user.id)
+      .eq("profile_id", user.id)
       .single()
     if (player) displayName = `${player.first_name} ${player.last_name}`
   } else if (role === "super_admin") {
