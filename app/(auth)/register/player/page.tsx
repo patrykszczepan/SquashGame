@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
@@ -53,6 +54,8 @@ const SKILL_LEVELS = ["beginner", "intermediate", "advanced"] as const
 
 export default function RegisterPlayerPage() {
   const t = useTranslations("auth.registerPlayer")
+  const searchParams = useSearchParams()
+  const joinCode = searchParams.get("join") ?? undefined
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState("")
@@ -73,7 +76,7 @@ export default function RegisterPlayerPage() {
     e.preventDefault()
     setError("")
     setLoading(true)
-    const result = await registerPlayer(form)
+    const result = await registerPlayer({ ...form, joinCode })
     if (result?.error) {
       setError(result.error)
       setLoading(false)

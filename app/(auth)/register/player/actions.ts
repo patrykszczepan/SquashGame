@@ -10,6 +10,7 @@ export async function registerPlayer(data: {
   last_name: string
   phone: string
   skill_level: string
+  joinCode?: string
 }): Promise<{ error: string } | void> {
   const supabase = await createClient()
 
@@ -32,7 +33,7 @@ export async function registerPlayer(data: {
     .insert({ id: userId, role: "player" })
 
   if (profileError) {
-    return { error: "Błąd tworzenia profilu." }
+    return { error: `Błąd tworzenia profilu: ${profileError.message}` }
   }
 
   const { error: playerError } = await admin
@@ -46,8 +47,11 @@ export async function registerPlayer(data: {
     })
 
   if (playerError) {
-    return { error: "Błąd tworzenia profilu zawodnika." }
+    return { error: `Błąd tworzenia profilu zawodnika: ${playerError.message}` }
   }
 
+  if (data.joinCode) {
+    redirect(`/join/${data.joinCode}`)
+  }
   redirect("/register/player/confirm")
 }
