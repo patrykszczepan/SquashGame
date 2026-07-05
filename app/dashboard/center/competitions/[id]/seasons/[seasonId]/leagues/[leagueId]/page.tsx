@@ -28,13 +28,23 @@ export default async function LeagueDetailPage({
     .single()
   if (!center) redirect("/dashboard/center")
 
-  // Fetch league with all related data
+  // Verify league ownership via season → competition → center
+  const { data: ownerCheck } = await supabase
+    .from("leagues")
+    .select("id, seasons!inner(name, competitions!inner(name, center_id))")
+    .eq("id", leagueId)
+    .single()
+
+  const ownerSeason = Array.isArray(ownerCheck?.seasons) ? ownerCheck.seasons[0] : ownerCheck?.seasons
+  const ownerComp = Array.isArray(ownerSeason?.competitions) ? ownerSeason.competitions[0] : ownerSeason?.competitions
+  if (!ownerCheck || ownerComp?.center_id !== center.id) notFound()
+
+  // Fetch league with all related data (scoring_configs fetched separately to avoid FK ambiguity)
   const { data: league } = await supabase
     .from("leagues")
     .select(`
       *,
-      seasons!inner(id, name, competition_id, competitions!inner(id, name, center_id)),
-      scoring_configs(config),
+      seasons!inner(id, name, competition_id),
       league_players(
         id, profile_id, position,
         players(first_name, last_name)
@@ -51,13 +61,22 @@ export default async function LeagueDetailPage({
     .eq("id", leagueId)
     .single()
 
-  if (!league || league.seasons.competitions.center_id !== center.id) notFound()
+  if (!league) notFound()
+
+  const leagueSeason = Array.isArray(league.seasons) ? league.seasons[0] : league.seasons
+
+  // Fetch scoring config separately
+  const { data: scoringConfigRow } = await supabase
+    .from("scoring_configs")
+    .select("config")
+    .eq("league_id", leagueId)
+    .maybeSingle()
 
   // Fetch competition players not yet in this league (for assignment)
   const { data: compPlayers } = await supabase
     .from("competition_players")
     .select("profile_id, players!inner(first_name, last_name)")
-    .eq("competition_id", league.seasons.competition_id)
+    .eq("competition_id", leagueSeason.competition_id)
     .eq("invitation_status", "accepted")
 
   const leaguePlayerIds = new Set(
@@ -76,7 +95,7 @@ export default async function LeagueDetailPage({
 
   // Calculate table
   const scoringConfig: ScoringConfig =
-    league.scoring_configs?.config ?? {
+    (scoringConfigRow?.config as ScoringConfig) ?? {
       win_by_sets: { "3:0": 5, "3:1": 4, "3:2": 3 },
       loss_by_sets: { "0:3": 0, "1:3": 1, "2:3": 2 },
       set_point: { enabled: false, value: 0 },
@@ -106,11 +125,11 @@ export default async function LeagueDetailPage({
           <Link href="/dashboard/center/competitions" className="hover:underline">Rozgrywki</Link>
           <span>/</span>
           <Link href={`/dashboard/center/competitions/${competitionId}`} className="hover:underline">
-            {league.seasons.competitions.name}
+            {ownerComp?.name ?? "Rozgrywki"}
           </Link>
           <span>/</span>
           <Link href={`/dashboard/center/competitions/${competitionId}/seasons/${seasonId}`} className="hover:underline">
-            {league.seasons.name}
+            {leagueSeason?.name ?? "Sezon"}
           </Link>
           <span>/</span>
           <span>{league.name}</span>
