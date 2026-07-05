@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Trophy, ChevronRight, Users } from "lucide-react"
+import { Plus, Trophy, ChevronRight, Users, Pencil } from "lucide-react"
 import { ActivateSeasonButton } from "./ActivateSeasonButton"
 import { CloseSeasonButton } from "./CloseSeasonButton"
 import { ExternalLink } from "lucide-react"
@@ -82,6 +82,16 @@ export default async function SeasonDetailPage({
                 ? "Zakończony"
                 : "Szkic"}
             </Badge>
+            {season.status !== "finished" && (
+              <Button variant="outline" size="sm" asChild>
+                <Link
+                  href={`/dashboard/center/competitions/${competitionId}/seasons/${seasonId}/edit`}
+                >
+                  <Pencil className="h-4 w-4 mr-1" />
+                  Edytuj
+                </Link>
+              </Button>
+            )}
             {season.status === "draft" && <ActivateSeasonButton seasonId={seasonId} />}
             {season.status === "active" && <CloseSeasonButton seasonId={seasonId} />}
             {center.slug && season.competitions.slug && (

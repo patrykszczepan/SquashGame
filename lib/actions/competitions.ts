@@ -125,6 +125,50 @@ export async function createSeason(form: {
   return { id: data.id }
 }
 
+export async function updateSeason(
+  seasonId: string,
+  form: {
+    name: string
+    start_date?: string
+    end_date?: string
+    sets_to_win: number
+    scoring_config: SeasonScoringConfig
+  }
+) {
+  const center = await getMyCenter()
+  if (!center) return { error: "Brak centrum." }
+
+  const supabase = await createClient()
+
+  // Verify season belongs to this center
+  const { data: season } = await supabase
+    .from("seasons")
+    .select("id, competitions!inner(center_id)")
+    .eq("id", seasonId)
+    .single()
+
+  if (!season || (season.competitions as any).center_id !== center.id) {
+    return { error: "Brak dostępu." }
+  }
+
+  const { error } = await supabase
+    .from("seasons")
+    .update({
+      name: form.name.trim(),
+      start_date: form.start_date || null,
+      end_date: form.end_date || null,
+      sets_to_win: form.sets_to_win,
+      scoring_type: form.scoring_config.type,
+      default_scoring_config: form.scoring_config,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", seasonId)
+
+  if (error) return { error: error.message }
+  revalidatePath("/dashboard/center/competitions")
+  return {}
+}
+
 export async function activateSeason(seasonId: string) {
   const center = await getMyCenter()
   if (!center) return { error: "Brak centrum." }
