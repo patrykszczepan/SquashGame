@@ -8,8 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { calculateTable } from "@/lib/scoring/engine"
 import type { ScoringConfig, Match } from "@/lib/types"
 import { cn } from "@/lib/utils"
-import { LeaguePlayersPanel } from "./LeaguePlayersPanel"
-import { QuickAssignButton } from "./QuickAssignButton"
+import { PlayerRowActions } from "./PlayerRowActions"
 import { GenerateScheduleButton, ResetScheduleButton } from "./GenerateScheduleButton"
 import { LeagueActions } from "./LeagueActions"
 import { AssignLeaguePlayersDialog } from "./AssignLeaguePlayersDialog"
@@ -467,81 +466,157 @@ export default async function LeagueDetailPage({
 
         {/* PLAYERS */}
         <TabsContent value="players" className="space-y-4">
-          {/* Assigned */}
-          <Card className="py-0 gap-0">
-            <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
-              <span className="font-semibold text-sm">
-                Przypisani do ligi ({leaguePlayers.length})
-              </span>
-              <div className="flex items-center gap-2">
-                <AddGuestToLeagueDialog leagueId={leagueId} />
-                <AssignLeaguePlayersDialog
-                  leagueId={leagueId}
-                  availableRegistered={availablePlayers as any[]}
-                  availableCenterPlayers={availableCenterPlayers as any[]}
-                  profileInLeague={profileInLeague}
-                  centerPlayerInLeague={centerPlayerInLeague}
-                />
-              </div>
-            </div>
-            {leaguePlayers.length === 0 ? (
-              <div className="py-8 text-center text-sm text-muted-foreground">
-                Brak przypisanych zawodników.
-              </div>
-            ) : (
-              <LeaguePlayersPanel
-                leagueId={leagueId}
-                leaguePlayers={leaguePlayers}
-              />
-            )}
-          </Card>
+          {/* Build lookup maps */}
+          {(() => {
+            const lpById = new Map(leaguePlayers.map((lp: any) => [lp.profile_id ?? lp.center_player_id, lp]))
 
-          {/* Unassigned from competition pool */}
-          {(availablePlayers.length > 0 || availableCenterPlayers.length > 0) && (
-            <Card className="py-0 gap-0">
-              <div className="px-4 py-3 border-b bg-muted/50">
-                <span className="font-semibold text-sm">
-                  Nieprzypisani ({availablePlayers.length + availableCenterPlayers.length})
-                </span>
+            // Module 1: Zawodnicy zarejestrowani (z kontem)
+            const allRegistered = [
+              ...leaguePlayers.filter((lp: any) => lp.profile_id).map((lp: any) => ({
+                profile_id: lp.profile_id,
+                players: lp.players,
+                inThisLeague: true,
+              })),
+              ...availablePlayers.map((cp: any) => ({
+                profile_id: cp.profile_id,
+                players: cp.players,
+                inThisLeague: false,
+              })),
+            ]
+
+            // Module 2: Zawodnicy centrum (bez konta)
+            const allCenterPlayers = [
+              ...leaguePlayers.filter((lp: any) => lp.center_player_id).map((lp: any) => ({
+                id: lp.center_player_id,
+                first_name: lp.center_players?.first_name ?? "—",
+                last_name: lp.center_players?.last_name ?? "",
+                inThisLeague: true,
+              })),
+              ...availableCenterPlayers.map((cp: any) => ({
+                id: cp.id,
+                first_name: cp.first_name,
+                last_name: cp.last_name,
+                inThisLeague: false,
+              })),
+            ]
+
+            return (
+              <div className="grid gap-4 lg:grid-cols-2">
+                {/* Moduł 1: Zawodnicy z kontem */}
+                <Card className="py-0 gap-0">
+                  <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
+                    <span className="font-semibold text-sm">
+                      Zawodnicy zarejestrowani ({allRegistered.length})
+                    </span>
+                    <AssignLeaguePlayersDialog
+                      leagueId={leagueId}
+                      availableRegistered={availablePlayers as any[]}
+                      availableCenterPlayers={[]}
+                      profileInLeague={profileInLeague}
+                      centerPlayerInLeague={{}}
+                    />
+                  </div>
+                  {allRegistered.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">Brak zawodników z kontem.</p>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-xs text-muted-foreground">
+                          <th className="px-4 py-2 text-left font-medium">Zawodnik</th>
+                          <th className="px-4 py-2 text-left font-medium">Status</th>
+                          <th className="px-4 py-2 w-10" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allRegistered.map((p: any) => {
+                          const name = p.players
+                            ? `${p.players.last_name} ${p.players.first_name}`
+                            : "—"
+                          const otherLeague = !p.inThisLeague ? profileInLeague[p.profile_id] : null
+                          return (
+                            <tr key={p.profile_id} className="border-b last:border-0 hover:bg-muted/30">
+                              <td className="px-4 py-2.5 font-medium">{name}</td>
+                              <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                                {p.inThisLeague
+                                  ? <span className="text-primary font-medium">w tej lidze</span>
+                                  : otherLeague
+                                  ? `${otherLeague}`
+                                  : "wolny"}
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <PlayerRowActions
+                                  leagueId={leagueId}
+                                  inThisLeague={p.inThisLeague}
+                                  profileId={p.profile_id}
+                                />
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </Card>
+
+                {/* Moduł 2: Zawodnicy centrum (bez konta) */}
+                <Card className="py-0 gap-0">
+                  <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
+                    <span className="font-semibold text-sm">
+                      Zawodnicy centrum ({allCenterPlayers.length})
+                    </span>
+                    <div className="flex gap-2">
+                      <AddGuestToLeagueDialog leagueId={leagueId} />
+                      <AssignLeaguePlayersDialog
+                        leagueId={leagueId}
+                        availableRegistered={[]}
+                        availableCenterPlayers={availableCenterPlayers as any[]}
+                        profileInLeague={{}}
+                        centerPlayerInLeague={centerPlayerInLeague}
+                      />
+                    </div>
+                  </div>
+                  {allCenterPlayers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">Brak zawodników centrum.</p>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-xs text-muted-foreground">
+                          <th className="px-4 py-2 text-left font-medium">Zawodnik</th>
+                          <th className="px-4 py-2 text-left font-medium">Status</th>
+                          <th className="px-4 py-2 w-10" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allCenterPlayers.map((p: any) => {
+                          const name = `${p.last_name} ${p.first_name}`.trim() || "—"
+                          const otherLeague = !p.inThisLeague ? centerPlayerInLeague[p.id] : null
+                          return (
+                            <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30">
+                              <td className="px-4 py-2.5 font-medium">{name}</td>
+                              <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                                {p.inThisLeague
+                                  ? <span className="text-primary font-medium">w tej lidze</span>
+                                  : otherLeague
+                                  ? `${otherLeague}`
+                                  : "wolny"}
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <PlayerRowActions
+                                  leagueId={leagueId}
+                                  inThisLeague={p.inThisLeague}
+                                  centerPlayerId={p.id}
+                                />
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </Card>
               </div>
-              <table className="w-full text-sm">
-                <tbody>
-                  {availablePlayers.map((cp: any) => {
-                    const name = cp.players
-                      ? `${cp.players.last_name} ${cp.players.first_name}`
-                      : "—"
-                    const inOther = profileInLeague[cp.profile_id]
-                    return (
-                      <tr key={cp.profile_id} className="border-b last:border-0 hover:bg-muted/30">
-                        <td className="px-4 py-2.5 font-medium">{name}</td>
-                        <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                          {inOther ? `inna liga: ${inOther}` : "wolny"}
-                        </td>
-                        <td className="px-4 py-2.5 w-10">
-                          <QuickAssignButton leagueId={leagueId} profileId={cp.profile_id} />
-                        </td>
-                      </tr>
-                    )
-                  })}
-                  {availableCenterPlayers.map((cp: any) => {
-                    const name = `${cp.last_name} ${cp.first_name}`
-                    const inOther = centerPlayerInLeague[cp.id]
-                    return (
-                      <tr key={cp.id} className="border-b last:border-0 hover:bg-muted/30">
-                        <td className="px-4 py-2.5 font-medium">{name}</td>
-                        <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                          {inOther ? `inna liga: ${inOther}` : "wolny · bez konta"}
-                        </td>
-                        <td className="px-4 py-2.5 w-10">
-                          <QuickAssignButton leagueId={leagueId} centerPlayerId={cp.id} />
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </Card>
-          )}
+            )
+          })()}
         </TabsContent>
       </Tabs>
     </div>
