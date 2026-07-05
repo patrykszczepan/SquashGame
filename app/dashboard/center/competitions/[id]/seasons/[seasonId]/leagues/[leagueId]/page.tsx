@@ -151,6 +151,48 @@ export default async function LeagueDetailPage({
     (cp: any) => !leagueCenterPlayerIds.has(cp.id)
   )
 
+  // All registered players (with account) — in league + available
+  const allRegistered = [
+    ...leaguePlayers
+      .filter((lp: any) => lp.profile_id)
+      .map((lp: any) => ({
+        profile_id: lp.profile_id,
+        name: lp.players
+          ? `${lp.players.last_name} ${lp.players.first_name}`
+          : "—",
+        inThisLeague: true,
+        otherLeague: null as string | null,
+      })),
+    ...availablePlayers.map((cp: any) => ({
+      profile_id: cp.profile_id,
+      name: cp.players
+        ? `${cp.players.last_name} ${cp.players.first_name}`
+        : "—",
+      inThisLeague: false,
+      otherLeague: profileInLeague[cp.profile_id] ?? null,
+    })),
+  ]
+
+  // All center players (no account) — in league + available
+  const allCenterPlayers = [
+    ...leaguePlayers
+      .filter((lp: any) => lp.center_player_id)
+      .map((lp: any) => ({
+        id: lp.center_player_id as string,
+        name: lp.center_players
+          ? `${lp.center_players.last_name} ${lp.center_players.first_name}`
+          : "—",
+        inThisLeague: true,
+        otherLeague: null as string | null,
+      })),
+    ...availableCenterPlayers.map((cp: any) => ({
+      id: cp.id as string,
+      name: `${cp.last_name} ${cp.first_name}`.trim() || "—",
+      inThisLeague: false,
+      otherLeague: centerPlayerInLeague[cp.id] ?? null,
+    })),
+  ]
+
   // Flatten matches from all rounds
   const allMatches: Match[] = rounds.flatMap((r: any) => r.matches ?? [])
   const hasSchedule = allMatches.length > 0
@@ -466,157 +508,112 @@ export default async function LeagueDetailPage({
 
         {/* PLAYERS */}
         <TabsContent value="players" className="space-y-4">
-          {/* Build lookup maps */}
-          {(() => {
-            const lpById = new Map(leaguePlayers.map((lp: any) => [lp.profile_id ?? lp.center_player_id, lp]))
+          <div className="grid gap-4 lg:grid-cols-2">
 
-            // Module 1: Zawodnicy zarejestrowani (z kontem)
-            const allRegistered = [
-              ...leaguePlayers.filter((lp: any) => lp.profile_id).map((lp: any) => ({
-                profile_id: lp.profile_id,
-                players: lp.players,
-                inThisLeague: true,
-              })),
-              ...availablePlayers.map((cp: any) => ({
-                profile_id: cp.profile_id,
-                players: cp.players,
-                inThisLeague: false,
-              })),
-            ]
-
-            // Module 2: Zawodnicy centrum (bez konta)
-            const allCenterPlayers = [
-              ...leaguePlayers.filter((lp: any) => lp.center_player_id).map((lp: any) => ({
-                id: lp.center_player_id,
-                first_name: lp.center_players?.first_name ?? "—",
-                last_name: lp.center_players?.last_name ?? "",
-                inThisLeague: true,
-              })),
-              ...availableCenterPlayers.map((cp: any) => ({
-                id: cp.id,
-                first_name: cp.first_name,
-                last_name: cp.last_name,
-                inThisLeague: false,
-              })),
-            ]
-
-            return (
-              <div className="grid gap-4 lg:grid-cols-2">
-                {/* Moduł 1: Zawodnicy z kontem */}
-                <Card className="py-0 gap-0">
-                  <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
-                    <span className="font-semibold text-sm">
-                      Zawodnicy zarejestrowani ({allRegistered.length})
-                    </span>
-                    <AssignLeaguePlayersDialog
-                      leagueId={leagueId}
-                      availableRegistered={availablePlayers as any[]}
-                      availableCenterPlayers={[]}
-                      profileInLeague={profileInLeague}
-                      centerPlayerInLeague={{}}
-                    />
-                  </div>
-                  {allRegistered.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">Brak zawodników z kontem.</p>
-                  ) : (
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b text-xs text-muted-foreground">
-                          <th className="px-4 py-2 text-left font-medium">Zawodnik</th>
-                          <th className="px-4 py-2 text-left font-medium">Status</th>
-                          <th className="px-4 py-2 w-10" />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {allRegistered.map((p: any) => {
-                          const name = p.players
-                            ? `${p.players.last_name} ${p.players.first_name}`
-                            : "—"
-                          const otherLeague = !p.inThisLeague ? profileInLeague[p.profile_id] : null
-                          return (
-                            <tr key={p.profile_id} className="border-b last:border-0 hover:bg-muted/30">
-                              <td className="px-4 py-2.5 font-medium">{name}</td>
-                              <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                                {p.inThisLeague
-                                  ? <span className="text-primary font-medium">w tej lidze</span>
-                                  : otherLeague
-                                  ? `${otherLeague}`
-                                  : "wolny"}
-                              </td>
-                              <td className="px-4 py-2.5">
-                                <PlayerRowActions
-                                  leagueId={leagueId}
-                                  inThisLeague={p.inThisLeague}
-                                  profileId={p.profile_id}
-                                />
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  )}
-                </Card>
-
-                {/* Moduł 2: Zawodnicy centrum (bez konta) */}
-                <Card className="py-0 gap-0">
-                  <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
-                    <span className="font-semibold text-sm">
-                      Zawodnicy centrum ({allCenterPlayers.length})
-                    </span>
-                    <div className="flex gap-2">
-                      <AddGuestToLeagueDialog leagueId={leagueId} />
-                      <AssignLeaguePlayersDialog
-                        leagueId={leagueId}
-                        availableRegistered={[]}
-                        availableCenterPlayers={availableCenterPlayers as any[]}
-                        profileInLeague={{}}
-                        centerPlayerInLeague={centerPlayerInLeague}
-                      />
-                    </div>
-                  </div>
-                  {allCenterPlayers.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">Brak zawodników centrum.</p>
-                  ) : (
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b text-xs text-muted-foreground">
-                          <th className="px-4 py-2 text-left font-medium">Zawodnik</th>
-                          <th className="px-4 py-2 text-left font-medium">Status</th>
-                          <th className="px-4 py-2 w-10" />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {allCenterPlayers.map((p: any) => {
-                          const name = `${p.last_name} ${p.first_name}`.trim() || "—"
-                          const otherLeague = !p.inThisLeague ? centerPlayerInLeague[p.id] : null
-                          return (
-                            <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30">
-                              <td className="px-4 py-2.5 font-medium">{name}</td>
-                              <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                                {p.inThisLeague
-                                  ? <span className="text-primary font-medium">w tej lidze</span>
-                                  : otherLeague
-                                  ? `${otherLeague}`
-                                  : "wolny"}
-                              </td>
-                              <td className="px-4 py-2.5">
-                                <PlayerRowActions
-                                  leagueId={leagueId}
-                                  inThisLeague={p.inThisLeague}
-                                  centerPlayerId={p.id}
-                                />
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  )}
-                </Card>
+            {/* Moduł 1: Zawodnicy zarejestrowani (z kontem) */}
+            <Card className="py-0 gap-0">
+              <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
+                <span className="font-semibold text-sm">
+                  Zawodnicy zarejestrowani ({allRegistered.length})
+                </span>
+                <AssignLeaguePlayersDialog
+                  leagueId={leagueId}
+                  availableRegistered={availablePlayers as any[]}
+                  availableCenterPlayers={[]}
+                  profileInLeague={profileInLeague}
+                  centerPlayerInLeague={{}}
+                />
               </div>
-            )
-          })()}
+              {allRegistered.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Brak zawodników z kontem.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-xs text-muted-foreground">
+                      <th className="px-4 py-2 text-left font-medium">Zawodnik</th>
+                      <th className="px-4 py-2 text-left font-medium">Status</th>
+                      <th className="px-4 py-2 w-10" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allRegistered.map((p) => (
+                      <tr key={p.profile_id} className="border-b last:border-0 hover:bg-muted/30">
+                        <td className="px-4 py-2.5 font-medium">{p.name}</td>
+                        <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                          {p.inThisLeague
+                            ? <span className="text-primary font-medium">w tej lidze</span>
+                            : p.otherLeague
+                            ? p.otherLeague
+                            : "wolny"}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <PlayerRowActions
+                            leagueId={leagueId}
+                            inThisLeague={p.inThisLeague}
+                            profileId={p.profile_id}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </Card>
+
+            {/* Moduł 2: Zawodnicy centrum (bez konta) */}
+            <Card className="py-0 gap-0">
+              <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
+                <span className="font-semibold text-sm">
+                  Zawodnicy centrum ({allCenterPlayers.length})
+                </span>
+                <div className="flex gap-2">
+                  <AddGuestToLeagueDialog leagueId={leagueId} />
+                  <AssignLeaguePlayersDialog
+                    leagueId={leagueId}
+                    availableRegistered={[]}
+                    availableCenterPlayers={availableCenterPlayers as any[]}
+                    profileInLeague={{}}
+                    centerPlayerInLeague={centerPlayerInLeague}
+                  />
+                </div>
+              </div>
+              {allCenterPlayers.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Brak zawodników centrum.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-xs text-muted-foreground">
+                      <th className="px-4 py-2 text-left font-medium">Zawodnik</th>
+                      <th className="px-4 py-2 text-left font-medium">Status</th>
+                      <th className="px-4 py-2 w-10" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allCenterPlayers.map((p) => (
+                      <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30">
+                        <td className="px-4 py-2.5 font-medium">{p.name}</td>
+                        <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                          {p.inThisLeague
+                            ? <span className="text-primary font-medium">w tej lidze</span>
+                            : p.otherLeague
+                            ? p.otherLeague
+                            : "wolny"}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <PlayerRowActions
+                            leagueId={leagueId}
+                            inThisLeague={p.inThisLeague}
+                            centerPlayerId={p.id}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </Card>
+
+          </div>
         </TabsContent>
       </Tabs>
     </div>
