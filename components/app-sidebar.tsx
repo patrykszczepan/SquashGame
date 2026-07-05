@@ -38,7 +38,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase/client"
 
 interface AppSidebarProps {
-  role?: "center" | "player" | "admin"
+  role?: "center" | "player" | "super_admin"
   displayName: string
   email: string
 }
@@ -76,7 +76,7 @@ export function AppSidebar({ role, displayName, email }: AppSidebarProps) {
     { title: tNav("admin.settings"), icon: Settings, url: "/dashboard/admin/settings" },
   ]
 
-  const navItems = role === "admin" ? adminNav : role === "center" ? centerNav : playerNav
+  const navItems = role === "super_admin" ? adminNav : role === "center" ? centerNav : playerNav
 
   const initials = displayName
     .split(" ")

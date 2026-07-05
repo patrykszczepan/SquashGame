@@ -17,12 +17,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .eq("id", user.id)
     .single()
 
-  const role = profile?.role as "center" | "player" | "admin" | undefined
+  const role = profile?.role as "center" | "player" | "super_admin" | undefined
 
   const headersList = await headers()
   const pathname = headersList.get("x-invoke-path") ?? headersList.get("next-url") ?? ""
 
-  if (role !== "admin" && pathname.includes("/dashboard/admin")) {
+  if (role !== "super_admin" && pathname.includes("/dashboard/admin")) {
     redirect("/dashboard")
   }
 
@@ -38,11 +38,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     const { data: player } = await supabase
       .from("players")
       .select("first_name, last_name")
-      .eq("profile_id", user.id)
+      .eq("id", user.id)
       .single()
     if (player) displayName = `${player.first_name} ${player.last_name}`
-  } else if (role === "admin") {
-    displayName = "Administrator"
+  } else if (role === "super_admin") {
+    displayName = "Super Admin"
   }
 
   return (
