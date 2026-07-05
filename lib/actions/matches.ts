@@ -189,7 +189,8 @@ export async function disputeMatchResult(matchId: string, note?: string) {
 
 export async function centerSubmitResult(
   matchId: string,
-  sets: Array<{ points_a: number; points_b: number }>
+  sets: Array<{ points_a: number; points_b: number }>,
+  meta?: { played_at?: string; court_number?: number }
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -209,7 +210,7 @@ export async function centerSubmitResult(
   }
   const winnerId = setsA > setsB ? match.player_a_id : match.player_b_id
 
-  await supabase.from("matches").update({
+  const { error: matchUpdateErr } = await supabase.from("matches").update({
     status: "finished",
     winner_id: winnerId,
     result_source: "center",
@@ -218,10 +219,15 @@ export async function centerSubmitResult(
     confirmed_by: user.id,
     confirmed_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    played_at: meta?.played_at ?? null,
+    court_number: meta?.court_number ?? null,
   }).eq("id", matchId)
+  if (matchUpdateErr) return { error: matchUpdateErr.message }
 
-  await supabase.from("match_sets").delete().eq("match_id", matchId)
-  await supabase.from("match_sets").insert(
+  const { error: deleteErr } = await supabase.from("match_sets").delete().eq("match_id", matchId)
+  if (deleteErr) return { error: deleteErr.message }
+
+  const { error: insertErr } = await supabase.from("match_sets").insert(
     sets.map((s, i) => ({
       match_id: matchId,
       set_number: i + 1,
@@ -229,6 +235,7 @@ export async function centerSubmitResult(
       points_b: s.points_b,
     }))
   )
+  if (insertErr) return { error: insertErr.message }
 
   await supabase.from("match_events").insert({
     match_id: matchId,
@@ -251,7 +258,37 @@ export async function centerSubmitResult(
     })
   }
 
-  revalidatePath("/dashboard/center/results")
+  revalidatePath("/dashboard/center", "layout")
+  return {}
+}
+
+export async function centerSubmitWalkover(
+  matchId: string,
+  winnerId: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Nie jesteś zalogowany." }
+
+  const now = new Date().toISOString()
+  const { error } = await supabase
+    .from("matches")
+    .update({
+      status: "walkover",
+      winner_id: winnerId,
+      walkover_for_id: winnerId,
+      walkover_type: "no_show",
+      result_source: "center",
+      submitted_by: user.id,
+      submitted_at: now,
+      confirmed_by: user.id,
+      confirmed_at: now,
+      updated_at: now,
+    })
+    .eq("id", matchId)
+  if (error) return { error: error.message }
+
+  revalidatePath("/dashboard/center", "layout")
   return {}
 }
 

@@ -120,7 +120,7 @@ export function AppSidebar({ role, displayName, email }: AppSidebarProps) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton size="lg">
-                  <Avatar className="h-8 w-8 rounded-lg">
+                  <Avatar className="h-8 w-8 rounded-lg after:rounded-lg">
                     <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
@@ -135,8 +135,18 @@ export function AppSidebar({ role, displayName, email }: AppSidebarProps) {
                 side="top"
                 align="start"
               >
-                <DropdownMenuItem>{tUser("profile")}</DropdownMenuItem>
-                <DropdownMenuItem>{tUser("accountSettings")}</DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a href={
+                    role === "center"
+                      ? "/dashboard/center/settings"
+                      : role === "player"
+                      ? "/dashboard/player/settings"
+                      : "/dashboard/admin/settings"
+                  }>
+                    <Settings className="mr-2 h-4 w-4" />
+                    {tUser("accountSettings")}
+                  </a>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"

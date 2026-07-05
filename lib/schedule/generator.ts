@@ -4,46 +4,34 @@ export interface ScheduleMatch {
   round_number: number
 }
 
-// Classic circle (round-robin) algorithm
+/**
+ * Generates schedule matches grouped as legs (phases), not mathematical rounds.
+ *
+ * single: 1 round containing all unique pairs
+ * double: 2 rounds — round 1 is the first leg, round 2 is the return leg
+ *
+ * Example: 4 players, double → 2 rounds × 6 matches each = 12 total
+ */
 export function generateRoundRobin(
   playerIds: string[],
   mode: "single" | "double" = "single"
 ): ScheduleMatch[] {
   if (playerIds.length < 2) return []
 
-  const players = [...playerIds]
-  const hasBye = players.length % 2 === 1
-  if (hasBye) players.push("__bye__")
-
-  const n = players.length
-  const numRounds = n - 1
-  const perRound = n / 2
-  const fixed = players[0]
-  const rotating = players.slice(1)
   const matches: ScheduleMatch[] = []
 
-  for (let round = 0; round < numRounds; round++) {
-    const circle = [fixed, ...rotating]
-
-    for (let i = 0; i < perRound; i++) {
-      const a = circle[i]
-      const b = circle[n - 1 - i]
-      if (a !== "__bye__" && b !== "__bye__") {
-        matches.push({ player_a_id: a, player_b_id: b, round_number: round + 1 })
-        if (mode === "double") {
-          matches.push({ player_a_id: b, player_b_id: a, round_number: numRounds + round + 1 })
-        }
+  for (let i = 0; i < playerIds.length; i++) {
+    for (let j = i + 1; j < playerIds.length; j++) {
+      matches.push({ player_a_id: playerIds[i], player_b_id: playerIds[j], round_number: 1 })
+      if (mode === "double") {
+        matches.push({ player_a_id: playerIds[j], player_b_id: playerIds[i], round_number: 2 })
       }
     }
-
-    // Rotate right: last element goes to position 1
-    rotating.unshift(rotating.pop()!)
   }
 
   return matches
 }
 
 export function roundCount(playerCount: number, mode: "single" | "double"): number {
-  const n = playerCount % 2 === 0 ? playerCount : playerCount + 1
-  return mode === "double" ? (n - 1) * 2 : n - 1
+  return mode === "double" ? 2 : 1
 }

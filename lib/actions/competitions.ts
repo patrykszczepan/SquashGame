@@ -316,10 +316,10 @@ export async function assignPlayerToLeague(leagueId: string, profileId: string) 
   const supabase = await createClient()
   const { error } = await supabase
     .from("league_players")
-    .upsert({ league_id: leagueId, profile_id: profileId }, { onConflict: "league_id,profile_id" })
+    .insert({ league_id: leagueId, profile_id: profileId })
 
   if (error) return { error: error.message }
-  revalidatePath("/dashboard/center/competitions")
+  revalidatePath("/dashboard/center", "layout")
   return {}
 }
 
@@ -332,7 +332,7 @@ export async function removePlayerFromLeague(leagueId: string, profileId: string
     .eq("profile_id", profileId)
 
   if (error) return { error: error.message }
-  revalidatePath("/dashboard/center/competitions")
+  revalidatePath("/dashboard/center", "layout")
   return {}
 }
 
@@ -343,25 +343,39 @@ export async function generateSchedule(leagueId: string) {
 
   const { data: league } = await supabase
     .from("leagues")
-    .select("*, league_players(profile_id), rounds(id)")
+    .select("*, league_players(profile_id, center_player_id), rounds(id, matches(id))")
     .eq("id", leagueId)
     .single()
 
   if (!league) return { error: "Liga nie istnieje." }
-  if ((league.rounds ?? []).length > 0) return { error: "Terminarz już wygenerowany." }
 
-  const players: string[] = (league.league_players ?? []).map(
-    (lp: { profile_id: string }) => lp.profile_id
-  )
+  const existingRounds = (league.rounds ?? []) as { id: string; matches: { id: string }[] }[]
+  const hasMatches = existingRounds.some((r) => (r.matches ?? []).length > 0)
+  if (hasMatches) return { error: "Terminarz już wygenerowany." }
+
+  // Rounds exist but no matches (broken state from failed previous attempt) — clean up
+  if (existingRounds.length > 0) {
+    await supabase.from("rounds").delete().eq("league_id", leagueId)
+  }
+
+  const players: string[] = (league.league_players ?? [])
+    .map((lp: { profile_id: string | null; center_player_id: string | null }) =>
+      lp.profile_id ?? lp.center_player_id
+    )
+    .filter(Boolean) as string[]
   if (players.length < 2) return { error: "Za mało zawodników (minimum 2)." }
 
   const scheduleMatches = generateRoundRobin(players, league.round_robin_mode)
   const maxRound = Math.max(...scheduleMatches.map((m) => m.round_number), 0)
 
-  // Create rounds
+  const roundNames =
+    league.round_robin_mode === "double"
+      ? ["Mecz", "Rewanż"]
+      : Array.from({ length: maxRound }, (_, i) => `Runda ${i + 1}`)
+
   const roundsToInsert = Array.from({ length: maxRound }, (_, i) => ({
     league_id: leagueId,
-    name: `Runda ${i + 1}`,
+    name: roundNames[i] ?? `Runda ${i + 1}`,
     number: i + 1,
   }))
 
@@ -388,6 +402,30 @@ export async function generateSchedule(leagueId: string) {
 
   revalidatePath("/dashboard/center/competitions")
   return { rounds: maxRound, matches: scheduleMatches.length }
+}
+
+export async function deleteSchedule(leagueId: string) {
+  const center = await getMyCenter()
+  if (!center) return { error: "Brak centrum." }
+
+  const supabase = await createClient()
+
+  // Verify this league belongs to this center
+  const { data: league } = await supabase
+    .from("leagues")
+    .select("id, seasons!inner(competitions!inner(center_id))")
+    .eq("id", leagueId)
+    .single()
+
+  if (!league || (league.seasons as any).competitions.center_id !== center.id) {
+    return { error: "Brak dostępu." }
+  }
+
+  const { error } = await supabase.from("rounds").delete().eq("league_id", leagueId)
+  if (error) return { error: error.message }
+
+  revalidatePath("/dashboard/center", "layout")
+  return {}
 }
 
 // ---- invitations ------------------------------------------------------------
@@ -532,6 +570,46 @@ export async function deleteCompetition(competitionId: string) {
     .eq("id", competitionId)
 
   if (error) return { error: error.message }
+  revalidatePath("/dashboard/center/competitions")
+  return {}
+}
+
+export async function addPlayerToCompetition(competitionId: string, profileId: string) {
+  const center = await getMyCenter()
+  if (!center) return { error: "Brak centrum." }
+
+  const supabase = await createClient()
+  const owned = await verifyCompetitionOwnership(supabase, competitionId, center.id)
+  if (!owned) return { error: "Brak dostępu." }
+
+  const { data: existing } = await supabase
+    .from("competition_players")
+    .select("id, invitation_status")
+    .eq("competition_id", competitionId)
+    .eq("profile_id", profileId)
+    .maybeSingle()
+
+  if (existing) {
+    if (existing.invitation_status === "accepted") return { error: "Zawodnik jest już w tej rozgrywce." }
+    const { error } = await supabase
+      .from("competition_players")
+      .update({ invitation_status: "accepted", accepted_at: new Date().toISOString() })
+      .eq("id", existing.id)
+    if (error) return { error: error.message }
+  } else {
+    const { error } = await supabase
+      .from("competition_players")
+      .insert({
+        competition_id: competitionId,
+        profile_id: profileId,
+        invitation_status: "accepted",
+        invited_at: new Date().toISOString(),
+        accepted_at: new Date().toISOString(),
+      })
+    if (error) return { error: error.message }
+  }
+
+  revalidatePath("/dashboard/center/players")
   revalidatePath("/dashboard/center/competitions")
   return {}
 }

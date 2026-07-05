@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 
 export async function registerPlayer(data: {
@@ -23,8 +23,11 @@ export async function registerPlayer(data: {
   }
 
   const userId = authData.user.id
+  // Use admin client to bypass RLS — after signUp with email confirmation,
+  // there is no active session, so anon client cannot insert into profiles.
+  const admin = createAdminClient()
 
-  const { error: profileError } = await supabase
+  const { error: profileError } = await admin
     .from("profiles")
     .insert({ id: userId, role: "player" })
 
@@ -32,7 +35,7 @@ export async function registerPlayer(data: {
     return { error: "Błąd tworzenia profilu." }
   }
 
-  const { error: playerError } = await supabase
+  const { error: playerError } = await admin
     .from("players")
     .insert({
       profile_id: userId,
@@ -46,5 +49,5 @@ export async function registerPlayer(data: {
     return { error: "Błąd tworzenia profilu zawodnika." }
   }
 
-  redirect("/dashboard")
+  redirect("/register/player/confirm")
 }

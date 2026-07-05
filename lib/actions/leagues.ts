@@ -96,3 +96,74 @@ export async function deleteLeague(leagueId: string) {
   revalidatePath("/dashboard/center/competitions")
   return {}
 }
+
+export async function addGuestPlayerToLeague(
+  leagueId: string,
+  form: { first_name: string; last_name: string; email?: string; phone?: string }
+) {
+  const center = await getMyCenter()
+  if (!center) return { error: "Brak centrum." }
+
+  const supabase = await createClient()
+  const owned = await verifyLeagueOwnership(supabase, leagueId, center.id)
+  if (!owned) return { error: "Brak dostępu." }
+
+  const { data: guestPlayer, error: guestError } = await supabase
+    .from("center_players")
+    .insert({
+      center_id: center.id,
+      first_name: form.first_name.trim(),
+      last_name: form.last_name.trim(),
+      email: form.email?.trim() || null,
+      phone: form.phone?.trim() || null,
+    })
+    .select("id")
+    .single()
+
+  if (guestError) return { error: guestError.message }
+
+  const { error: lpError } = await supabase
+    .from("league_players")
+    .insert({ league_id: leagueId, center_player_id: guestPlayer.id })
+
+  if (lpError) return { error: lpError.message }
+
+  revalidatePath("/dashboard/center/competitions")
+  return {}
+}
+
+export async function assignCenterPlayerToLeague(leagueId: string, centerPlayerId: string) {
+  const center = await getMyCenter()
+  if (!center) return { error: "Brak centrum." }
+
+  const supabase = await createClient()
+  const owned = await verifyLeagueOwnership(supabase, leagueId, center.id)
+  if (!owned) return { error: "Brak dostępu." }
+
+  const { error } = await supabase
+    .from("league_players")
+    .insert({ league_id: leagueId, center_player_id: centerPlayerId })
+
+  if (error) return { error: error.message }
+  revalidatePath("/dashboard/center", "layout")
+  return {}
+}
+
+export async function removeGuestPlayerFromLeague(leagueId: string, centerPlayerId: string) {
+  const center = await getMyCenter()
+  if (!center) return { error: "Brak centrum." }
+
+  const supabase = await createClient()
+  const owned = await verifyLeagueOwnership(supabase, leagueId, center.id)
+  if (!owned) return { error: "Brak dostępu." }
+
+  const { error } = await supabase
+    .from("league_players")
+    .delete()
+    .eq("league_id", leagueId)
+    .eq("center_player_id", centerPlayerId)
+
+  if (error) return { error: error.message }
+  revalidatePath("/dashboard/center", "layout")
+  return {}
+}

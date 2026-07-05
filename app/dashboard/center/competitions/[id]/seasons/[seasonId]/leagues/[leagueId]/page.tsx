@@ -7,9 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { calculateTable } from "@/lib/scoring/engine"
 import type { ScoringConfig, Match } from "@/lib/types"
+import { cn } from "@/lib/utils"
 import { LeaguePlayersPanel } from "./LeaguePlayersPanel"
-import { GenerateScheduleButton } from "./GenerateScheduleButton"
+import { GenerateScheduleButton, ResetScheduleButton } from "./GenerateScheduleButton"
 import { LeagueActions } from "./LeagueActions"
+import { AssignLeaguePlayersDialog } from "./AssignLeaguePlayersDialog"
+import { AddGuestToLeagueDialog } from "./AddGuestToLeagueDialog"
+import { EnterMatchResultDialog } from "./EnterMatchResultDialog"
 
 export default async function LeagueDetailPage({
   params,
@@ -23,7 +27,7 @@ export default async function LeagueDetailPage({
 
   const { data: center } = await supabase
     .from("centers")
-    .select("id")
+    .select("id, num_courts")
     .eq("profile_id", user.id)
     .single()
   if (!center) redirect("/dashboard/center")
@@ -59,40 +63,82 @@ export default async function LeagueDetailPage({
     .eq("league_id", leagueId)
     .maybeSingle()
 
-  // Fetch league players
-  const { data: leaguePlayersRaw } = await supabase
+  // Fetch league players basic data — avoid PostgREST join syntax which can fail on new FKs
+  const { data: leaguePlayersBase } = await supabase
     .from("league_players")
-    .select("id, profile_id, position, players(first_name, last_name)")
+    .select("id, profile_id, center_player_id, position")
     .eq("league_id", leagueId)
 
-  // Fetch rounds with matches
-  const { data: roundsRaw } = await supabase
-    .from("rounds")
-    .select(`
-      id, name, number, deadline,
-      matches(
-        id, player_a_id, player_b_id, status, winner_id,
-        walkover_for_id, result_source, submitted_by,
-        match_sets(set_number, points_a, points_b)
-      )
-    `)
-    .eq("league_id", leagueId)
-    .order("number")
+  const lpBase = leaguePlayersBase ?? []
+  const profileIds = lpBase.map((lp) => lp.profile_id).filter(Boolean) as string[]
+  const centerPlayerIds = lpBase.map((lp) => lp.center_player_id).filter(Boolean) as string[]
 
-  // Fetch competition players not yet in this league
-  const { data: compPlayers } = await supabase
-    .from("competition_players")
-    .select("profile_id, players!inner(first_name, last_name)")
-    .eq("competition_id", season.competition_id)
-    .eq("invitation_status", "accepted")
+  // Fetch player names separately — more reliable than PostgREST join on new FK columns
+  const [playersRes, centerPlayersRes, roundsRes, compPlayersRes, availableCenterRes] =
+    await Promise.all([
+      profileIds.length > 0
+        ? supabase.from("players").select("profile_id, first_name, last_name").in("profile_id", profileIds)
+        : Promise.resolve({ data: [] as { profile_id: string; first_name: string; last_name: string }[] }),
+      centerPlayerIds.length > 0
+        ? supabase.from("center_players").select("id, first_name, last_name, email, phone").in("id", centerPlayerIds)
+        : Promise.resolve({ data: [] as { id: string; first_name: string; last_name: string; email: string | null; phone: string | null }[] }),
+      supabase
+        .from("rounds")
+        .select(`id, name, number, deadline, matches(id, player_a_id, player_b_id, status, winner_id, walkover_for_id, result_source, submitted_by, match_sets(set_number, points_a, points_b))`)
+        .eq("league_id", leagueId)
+        .order("number"),
+      supabase
+        .from("competition_players")
+        .select("profile_id, players!inner(first_name, last_name)")
+        .eq("competition_id", season.competition_id)
+        .eq("invitation_status", "accepted"),
+      supabase
+        .from("center_players")
+        .select("id, first_name, last_name, email, phone")
+        .eq("center_id", center.id)
+        .eq("is_archived", false)
+        .order("last_name"),
+    ])
 
-  const leaguePlayers = (leaguePlayersRaw ?? []) as any[]
-  const rounds = (roundsRaw ?? []) as any[]
+  const playerNameMap = new Map((playersRes.data ?? []).map((p) => [p.profile_id, p]))
+  const centerPlayerMap = new Map((centerPlayersRes.data ?? []).map((p) => [p.id, p]))
 
-  const leaguePlayerIds = new Set(leaguePlayers.map((lp: any) => lp.profile_id))
+  const leaguePlayers = lpBase.map((lp) => ({
+    ...lp,
+    players: lp.profile_id ? (playerNameMap.get(lp.profile_id) ?? null) : null,
+    center_players: lp.center_player_id ? (centerPlayerMap.get(lp.center_player_id) ?? null) : null,
+  }))
 
+  const rounds = (roundsRes.data ?? []) as any[]
+  const compPlayers = compPlayersRes.data ?? []
+  const centerPlayersRaw = availableCenterRes.data ?? []
+
+  const leagueProfileIds = new Set(lpBase.map((lp) => lp.profile_id).filter(Boolean))
+  const leagueCenterPlayerIds = new Set(lpBase.map((lp) => lp.center_player_id).filter(Boolean))
+
+  // Fetch all other leagues in this season to detect cross-league conflicts
+  const { data: otherLeagues } = await supabase
+    .from("leagues")
+    .select("id, name, league_players(profile_id, center_player_id)")
+    .eq("season_id", season.id)
+    .neq("id", leagueId)
+
+  const profileInLeague: Record<string, string> = {}
+  const centerPlayerInLeague: Record<string, string> = {}
+  for (const l of otherLeagues ?? []) {
+    for (const lp of (l.league_players ?? []) as { profile_id: string | null; center_player_id: string | null }[]) {
+      if (lp.profile_id) profileInLeague[lp.profile_id] = l.name
+      if (lp.center_player_id) centerPlayerInLeague[lp.center_player_id] = l.name
+    }
+  }
+
+  // Available = in competition but NOT yet in this league (already-in-other-league shown greyed in dialog)
   const availablePlayers = (compPlayers ?? []).filter(
-    (cp: any) => !leaguePlayerIds.has(cp.profile_id)
+    (cp: any) => !leagueProfileIds.has(cp.profile_id)
+  )
+
+  const availableCenterPlayers = (centerPlayersRaw ?? []).filter(
+    (cp: any) => !leagueCenterPlayerIds.has(cp.id)
   )
 
   // Flatten matches from all rounds
@@ -111,10 +157,15 @@ export default async function LeagueDetailPage({
       tiebreaker: ["points", "head_to_head", "set_ratio", "small_points", "matches_played"],
     }
 
-  const playerRefs = leaguePlayers.map((lp: any) => ({
-    id: lp.profile_id,
-    name: `${lp.players?.first_name ?? ""} ${lp.players?.last_name ?? ""}`.trim(),
-  }))
+  const playerRefs = leaguePlayers.map((lp: any) => {
+    const isGuest = !lp.profile_id && lp.center_player_id
+    return {
+      id: lp.profile_id ?? lp.center_player_id,
+      name: isGuest
+        ? `${lp.center_players?.first_name ?? ""} ${lp.center_players?.last_name ?? ""}`.trim()
+        : `${lp.players?.first_name ?? ""} ${lp.players?.last_name ?? ""}`.trim(),
+    }
+  })
 
   const table = calculateTable(playerRefs, allMatches, scoringConfig)
 
@@ -156,6 +207,7 @@ export default async function LeagueDetailPage({
       <Tabs defaultValue="table">
         <TabsList>
           <TabsTrigger value="table">Tabela</TabsTrigger>
+          <TabsTrigger value="results">Wyniki</TabsTrigger>
           <TabsTrigger value="schedule">Terminarz</TabsTrigger>
           <TabsTrigger value="players">Zawodnicy</TabsTrigger>
         </TabsList>
@@ -164,12 +216,12 @@ export default async function LeagueDetailPage({
         <TabsContent value="table" className="space-y-4">
           {table.length === 0 ? (
             <Card>
-              <CardContent className="py-10 text-center text-muted-foreground">
+              <CardContent className="py-8 text-center text-muted-foreground">
                 Brak zawodników w lidze.
               </CardContent>
             </Card>
           ) : (
-            <Card>
+            <Card className="py-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -184,20 +236,109 @@ export default async function LeagueDetailPage({
                     </tr>
                   </thead>
                   <tbody>
-                    {table.map((row, idx) => (
-                      <tr
-                        key={row.profile_id}
-                        className="border-b last:border-0 hover:bg-muted/30"
-                      >
-                        <td className="px-4 py-3 text-muted-foreground">{idx + 1}</td>
-                        <td className="px-4 py-3 font-medium">{row.player_name}</td>
-                        <td className="px-4 py-3 text-center text-muted-foreground">{row.played}</td>
-                        <td className="px-4 py-3 text-center text-muted-foreground">{row.won}</td>
-                        <td className="px-4 py-3 text-center text-muted-foreground">{row.lost}</td>
-                        <td className="px-4 py-3 text-center text-muted-foreground">
-                          {row.sets_won}:{row.sets_lost}
+                    {table.map((row, idx) => {
+                      const promotions = league.promotions ?? 0
+                      const demotions = league.demotions ?? 0
+                      const isPromotion = promotions > 0 && idx < promotions
+                      const isDemotion = demotions > 0 && idx >= table.length - demotions
+                      return (
+                        <tr
+                          key={row.profile_id}
+                          className={cn(
+                            "border-b last:border-0",
+                            isPromotion && "bg-green-50 hover:bg-green-100 dark:bg-green-950/30 dark:hover:bg-green-950/50",
+                            isDemotion && "bg-red-50 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-950/50",
+                            !isPromotion && !isDemotion && "hover:bg-muted/30"
+                          )}
+                        >
+                          <td className="px-4 py-3 text-muted-foreground">{idx + 1}</td>
+                          <td className="px-4 py-3 font-medium">{row.player_name}</td>
+                          <td className="px-4 py-3 text-center text-muted-foreground">{row.played}</td>
+                          <td className="px-4 py-3 text-center text-muted-foreground">{row.won}</td>
+                          <td className="px-4 py-3 text-center text-muted-foreground">{row.lost}</td>
+                          <td className="px-4 py-3 text-center text-muted-foreground">
+                            {row.sets_won}:{row.sets_lost}
+                          </td>
+                          <td className="px-4 py-3 text-center font-bold">{row.points}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* RESULTS MATRIX */}
+        <TabsContent value="results" className="space-y-4">
+          {table.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                Brak zawodników w lidze.
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="py-0">
+              <div className="overflow-x-auto">
+                <table className="text-sm border-collapse w-full">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="px-3 py-2.5 text-left font-medium text-muted-foreground min-w-[10rem]">
+                        Zawodnik
+                      </th>
+                      {table.map((_, j) => (
+                        <th key={j} className="px-3 py-2.5 text-center font-semibold w-14">
+                          {j + 1}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {table.map((rowPlayer, i) => (
+                      <tr key={rowPlayer.profile_id} className="border-b last:border-0 hover:bg-muted/20">
+                        <td className="px-3 py-2 font-medium whitespace-nowrap">
+                          <span className="text-muted-foreground mr-2 tabular-nums">{i + 1}.</span>
+                          {rowPlayer.player_name}
                         </td>
-                        <td className="px-4 py-3 text-center font-bold">{row.points}</td>
+                        {table.map((colPlayer, j) => {
+                          if (i === j) {
+                            return <td key={j} className="bg-muted/40 border-l border-r border-muted" />
+                          }
+                          // Only the match where rowPlayer is player_a (gospodarz)
+                          const match = (allMatches as any[]).find((m: any) =>
+                            m.player_a_id === rowPlayer.profile_id &&
+                            m.player_b_id === colPlayer.profile_id
+                          )
+                          if (!match || (match.status !== "finished" && match.status !== "walkover")) {
+                            return (
+                              <td key={j} className="px-3 py-2 text-center text-muted-foreground/40">–</td>
+                            )
+                          }
+                          if (match.status === "walkover") {
+                            const won = match.winner_id === rowPlayer.profile_id
+                            return (
+                              <td key={j} className={cn(
+                                "px-3 py-2 text-center text-xs font-semibold",
+                                won ? "text-green-700 dark:text-green-400" : "text-muted-foreground"
+                              )}>
+                                WO
+                              </td>
+                            )
+                          }
+                          const sets = (match.match_sets ?? []) as any[]
+                          const myWins = sets.filter((s: any) => s.points_a > s.points_b).length
+                          const theirWins = sets.filter((s: any) => s.points_b > s.points_a).length
+                          const won = myWins > theirWins
+                          return (
+                            <td key={j} className={cn(
+                              "px-3 py-2 text-center font-mono text-xs font-semibold tabular-nums",
+                              won ? "text-green-700 dark:text-green-400" : "text-muted-foreground"
+                            )}>
+                              {myWins}:{theirWins}
+                            </td>
+                          )
+                        })}
                       </tr>
                     ))}
                   </tbody>
@@ -209,6 +350,11 @@ export default async function LeagueDetailPage({
 
         {/* SCHEDULE */}
         <TabsContent value="schedule" className="space-y-4">
+          {hasSchedule && (
+            <div className="flex justify-end">
+              <ResetScheduleButton leagueId={leagueId} />
+            </div>
+          )}
           {!hasSchedule && leaguePlayers.length >= 2 && (
             <Card>
               <CardContent className="py-8 text-center space-y-4">
@@ -226,69 +372,119 @@ export default async function LeagueDetailPage({
               </CardContent>
             </Card>
           )}
-          {rounds.map((round: any) => (
-            <Card key={round.id}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">
-                  {round.name}
-                  {round.deadline && (
-                    <span className="ml-2 text-sm font-normal text-muted-foreground">
-                      do {new Date(round.deadline).toLocaleDateString("pl")}
-                    </span>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {(round.matches ?? []).map((m: any) => {
-                  const playerA = leaguePlayers.find((lp: any) => lp.profile_id === m.player_a_id)
-                  const playerB = leaguePlayers.find((lp: any) => lp.profile_id === m.player_b_id)
-                  const nameA = playerA
-                    ? `${playerA.players?.first_name} ${playerA.players?.last_name}`
-                    : "?"
-                  const nameB = playerB
-                    ? `${playerB.players?.first_name} ${playerB.players?.last_name}`
-                    : "?"
+          {rounds.map((round: any) => {
+            const roundMatches = (round.matches ?? []) as any[]
+            const played = roundMatches.filter((m: any) => m.status === "finished" || m.status === "walkover").length
+            return (
+              <Card key={round.id} className="py-0 gap-0">
+                <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
+                  <div className="flex items-center gap-3">
+                    <span className="font-semibold text-sm">{round.name}</span>
+                    {round.deadline && (
+                      <span className="text-xs text-muted-foreground">
+                        termin: {new Date(round.deadline).toLocaleDateString("pl")}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {played}/{roundMatches.length} rozegranych
+                  </span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {roundMatches.map((m: any) => {
+                        const lpA = leaguePlayers.find((lp: any) =>
+                          (lp.profile_id ?? lp.center_player_id) === m.player_a_id
+                        )
+                        const lpB = leaguePlayers.find((lp: any) =>
+                          (lp.profile_id ?? lp.center_player_id) === m.player_b_id
+                        )
+                        const getName = (lp: any) => {
+                          if (!lp) return "?"
+                          if (lp.players) return `${lp.players.last_name} ${lp.players.first_name}`
+                          return `${lp.center_players?.last_name ?? ""} ${lp.center_players?.first_name ?? ""}`.trim() || "?"
+                        }
+                        const nameA = getName(lpA)
+                        const nameB = getName(lpB)
+                        const scoreA = (m.match_sets ?? []).filter((s: any) => s.points_a > s.points_b).length
+                        const scoreB = (m.match_sets ?? []).filter((s: any) => s.points_b > s.points_a).length
+                        const finished = m.status === "finished" || m.status === "walkover"
+                        const pending = m.status === "pending_confirmation"
+                        const winA = finished && m.winner_id === m.player_a_id
+                        const winB = finished && m.winner_id === m.player_b_id
 
-                  const scoreA = (m.match_sets ?? []).filter(
-                    (s: any) => s.points_a > s.points_b
-                  ).length
-                  const scoreB = (m.match_sets ?? []).filter(
-                    (s: any) => s.points_b > s.points_a
-                  ).length
-
-                  return (
-                    <div
-                      key={m.id}
-                      className="flex items-center justify-between py-2 px-3 rounded-md border text-sm"
-                    >
-                      <span className={m.winner_id === m.player_a_id ? "font-semibold" : ""}>
-                        {nameA}
-                      </span>
-                      <span className="text-muted-foreground mx-3">
-                        {m.status === "finished" || m.status === "walkover"
-                          ? `${scoreA}:${scoreB}`
-                          : m.status === "pending_confirmation"
-                          ? "⏳"
-                          : "–"}
-                      </span>
-                      <span className={m.winner_id === m.player_b_id ? "font-semibold" : ""}>
-                        {nameB}
-                      </span>
-                    </div>
-                  )
-                })}
-              </CardContent>
-            </Card>
-          ))}
+                        return (
+                          <tr key={m.id} className="border-b last:border-0 hover:bg-muted/30">
+                            <td className={`px-4 py-3 text-right w-[40%] ${winA ? "font-semibold" : "text-muted-foreground"}`}>
+                              {nameA}
+                            </td>
+                            <td className="px-3 py-3 text-center w-[14%]">
+                              {finished
+                                ? <span className="font-mono font-semibold tabular-nums">{scoreA}&nbsp;:&nbsp;{scoreB}</span>
+                                : pending
+                                ? <span className="text-xs text-amber-500 font-medium">oczekuje</span>
+                                : <span className="text-muted-foreground">–</span>}
+                            </td>
+                            <td className={`px-4 py-3 text-left w-[40%] ${winB ? "font-semibold" : "text-muted-foreground"}`}>
+                              {nameB}
+                            </td>
+                            <td className="px-2 py-3 w-10">
+                              <EnterMatchResultDialog
+                                matchId={m.id}
+                                playerAName={nameA}
+                                playerBName={nameB}
+                                playerAId={m.player_a_id}
+                                playerBId={m.player_b_id}
+                                setsToWin={(league.match_format as any)?.sets_to_win ?? 3}
+                                existingSets={m.match_sets}
+                                currentStatus={m.status}
+                                scoringConfig={scoringConfig}
+                                numCourts={(center as any).num_courts ?? 1}
+                              />
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )
+          })}
         </TabsContent>
 
         {/* PLAYERS */}
-        <TabsContent value="players">
-          <LeaguePlayersPanel
-            leagueId={leagueId}
-            leaguePlayers={leaguePlayers}
-            availablePlayers={availablePlayers as any[]}
-          />
+        <TabsContent value="players" className="space-y-4">
+          <Card className="py-0 gap-0">
+            <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
+              <span className="font-semibold text-sm">
+                {leaguePlayers.length === 0
+                  ? "Zawodnicy"
+                  : `${leaguePlayers.length} ${leaguePlayers.length === 1 ? "zawodnik" : "zawodników"} w lidze`}
+              </span>
+              <div className="flex items-center gap-2">
+                <AddGuestToLeagueDialog leagueId={leagueId} />
+                <AssignLeaguePlayersDialog
+                  leagueId={leagueId}
+                  availableRegistered={availablePlayers as any[]}
+                  availableCenterPlayers={availableCenterPlayers as any[]}
+                  profileInLeague={profileInLeague}
+                  centerPlayerInLeague={centerPlayerInLeague}
+                />
+              </div>
+            </div>
+            {leaguePlayers.length === 0 ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">
+                Brak zawodników w lidze.
+              </div>
+            ) : (
+              <LeaguePlayersPanel
+                leagueId={leagueId}
+                leaguePlayers={leaguePlayers}
+              />
+            )}
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

@@ -2,116 +2,92 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { assignPlayerToLeague, removePlayerFromLeague } from "@/lib/actions/competitions"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { removePlayerFromLeague } from "@/lib/actions/competitions"
+import { removeGuestPlayerFromLeague } from "@/lib/actions/leagues"
 import { Badge } from "@/components/ui/badge"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { UserPlus, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { X, Loader2 } from "lucide-react"
 
-interface Player {
-  profile_id: string
-  players: { first_name: string; last_name: string }
+interface LeaguePlayer {
+  id: string
+  profile_id: string | null
+  center_player_id: string | null
+  position: number | null
+  players: { first_name: string; last_name: string } | null
+  center_players: { first_name: string; last_name: string; email: string | null; phone: string | null } | null
 }
 
 interface Props {
   leagueId: string
-  leaguePlayers: Player[]
-  availablePlayers: Player[]
+  leaguePlayers: LeaguePlayer[]
 }
 
-export function LeaguePlayersPanel({ leagueId, leaguePlayers, availablePlayers }: Props) {
+function getPlayerName(lp: LeaguePlayer): string {
+  if (lp.players) return `${lp.players.last_name} ${lp.players.first_name}`
+  if (lp.center_players) return `${lp.center_players.last_name} ${lp.center_players.first_name}`
+  return "?"
+}
+
+export function LeaguePlayersPanel({ leagueId, leaguePlayers }: Props) {
   const router = useRouter()
-  const [selected, setSelected] = useState("")
-  const [loading, setLoading] = useState<string | null>(null)
+  const [loadingId, setLoadingId] = useState<string | null>(null)
 
-  async function handleAdd() {
-    if (!selected) return
-    setLoading("add")
-    await assignPlayerToLeague(leagueId, selected)
-    setSelected("")
-    setLoading(null)
-    router.refresh()
-  }
-
-  async function handleRemove(profileId: string) {
-    setLoading(profileId)
-    await removePlayerFromLeague(leagueId, profileId)
-    setLoading(null)
+  async function handleRemove(lp: LeaguePlayer) {
+    const key = lp.profile_id ?? lp.center_player_id ?? lp.id
+    setLoadingId(key)
+    if (lp.profile_id) {
+      await removePlayerFromLeague(leagueId, lp.profile_id)
+    } else if (lp.center_player_id) {
+      await removeGuestPlayerFromLeague(leagueId, lp.center_player_id)
+    }
+    setLoadingId(null)
     router.refresh()
   }
 
   return (
-    <div className="space-y-4">
-      {/* Add player */}
-      {availablePlayers.length > 0 && (
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm font-medium mb-3">Dodaj zawodnika z puli rozgrywek:</p>
-            <div className="flex gap-2">
-              <Select value={selected} onValueChange={setSelected}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Wybierz zawodnika..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {availablePlayers.map((cp) => (
-                    <SelectItem key={cp.profile_id} value={cp.profile_id}>
-                      {cp.players.first_name} {cp.players.last_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button onClick={handleAdd} disabled={!selected || loading === "add"}>
-                <UserPlus className="h-4 w-4 mr-1" />
-                Dodaj
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Current players */}
-      <Card>
-        <CardContent className="pt-4">
-          <p className="text-sm font-medium mb-3">
-            Zawodnicy w lidze ({leaguePlayers.length})
-          </p>
-          {leaguePlayers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Brak zawodników.</p>
-          ) : (
-            <div className="space-y-2">
-              {leaguePlayers.map((lp, idx) => (
-                <div
-                  key={lp.profile_id}
-                  className="flex items-center justify-between py-2 px-3 rounded-md border"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-muted-foreground w-5">{idx + 1}.</span>
-                    <span className="text-sm font-medium">
-                      {lp.players.first_name} {lp.players.last_name}
-                    </span>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b bg-muted/50">
+            <th className="px-4 py-3 text-left w-8 font-medium">#</th>
+            <th className="px-4 py-3 text-left font-medium">Zawodnik</th>
+            <th className="px-4 py-3 w-10"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {leaguePlayers.map((lp, idx) => {
+            const isGuest = !lp.profile_id && !!lp.center_player_id
+            const key = lp.profile_id ?? lp.center_player_id ?? lp.id
+            return (
+              <tr key={lp.id} className="border-b last:border-0 hover:bg-muted/30">
+                <td className="px-4 py-3 text-muted-foreground">{idx + 1}</td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{getPlayerName(lp)}</span>
+                    {isGuest && (
+                      <Badge variant="secondary" className="text-xs font-normal">Bez konta</Badge>
+                    )}
                   </div>
+                </td>
+                <td className="px-4 py-3">
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => handleRemove(lp.profile_id)}
-                    disabled={loading === lp.profile_id}
+                    onClick={() => handleRemove(lp)}
+                    disabled={loadingId === key}
+                    title="Usuń z ligi"
                   >
-                    <X className="h-3 w-3" />
+                    {loadingId === key
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <X className="h-3.5 w-3.5" />}
                   </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }
