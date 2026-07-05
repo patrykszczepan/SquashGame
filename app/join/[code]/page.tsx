@@ -115,12 +115,28 @@ export default async function JoinPage({
     )
   }
 
-  // Logged in — check if player profile exists
-  const { data: player } = await supabase
+  // Logged in — check if player profile exists, auto-create if missing
+  let { data: player } = await supabase
     .from("players")
     .select("id")
     .eq("profile_id", user.id)
     .single()
+
+  if (!player) {
+    // Player registered but players record missing (e.g. failed registration) — create it now
+    const adminForPlayer = createAdminClient()
+    await adminForPlayer.from("players").insert({
+      profile_id: user.id,
+      first_name: user.email?.split("@")[0] ?? "Zawodnik",
+      last_name: "",
+    })
+    const { data: newPlayer } = await adminForPlayer
+      .from("players")
+      .select("id")
+      .eq("profile_id", user.id)
+      .single()
+    player = newPlayer
+  }
 
   if (!player) {
     return (
