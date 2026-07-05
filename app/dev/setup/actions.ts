@@ -90,14 +90,9 @@ export async function setupTestAccounts(password: string) {
       details.push(`Auth user created (id: ${userId.slice(0, 8)}...)`)
     }
 
-    // Force-update profile (delete + insert to bypass constraint issues)
+    // Upsert profile — only id + role (no first_name/last_name in profiles table)
     const { error: profileErr } = await admin.from("profiles").upsert(
-      {
-        id: userId,
-        role: acc.role,
-        first_name: acc.first_name,
-        last_name: acc.last_name,
-      },
+      { id: userId, role: acc.role },
       { onConflict: "id" }
     )
     if (profileErr) {
