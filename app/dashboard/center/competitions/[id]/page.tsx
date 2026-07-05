@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator"
 import { Plus, Users, Link2, ChevronRight, Trophy, Swords } from "lucide-react"
 import { getCompetitionPlayers, getCompetitionInvitations } from "@/lib/actions/competitions"
 import { CreateInvitationButton } from "./CreateInvitationButton"
+import { CompetitionActions } from "./CompetitionActions"
 
 const seasonStatusBadge: Record<string, "default" | "secondary" | "outline"> = {
   active: "default",
@@ -58,7 +59,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
             <Link href="/dashboard/center/competitions" className="hover:underline">
@@ -67,14 +68,24 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
             <span>/</span>
             <span>{comp.name}</span>
           </div>
-          <h1 className="text-2xl font-bold">{comp.name}</h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl font-bold">{comp.name}</h1>
+            <Badge variant={comp.visibility === "public" ? "default" : "secondary"}>
+              {t(`visibility.${comp.visibility}`)}
+            </Badge>
+            {comp.is_archived && (
+              <Badge variant="outline">Zarchiwizowane</Badge>
+            )}
+          </div>
           {comp.description && (
             <p className="text-muted-foreground mt-1">{comp.description}</p>
           )}
         </div>
-        <Badge variant={comp.visibility === "public" ? "default" : "secondary"}>
-          {t(`visibility.${comp.visibility}`)}
-        </Badge>
+        <CompetitionActions
+          competitionId={id}
+          competitionName={comp.name}
+          isArchived={comp.is_archived ?? false}
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -100,7 +111,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
             ) : (
               <div className="space-y-2">
                 {tournaments.map((t: any) => (
-                  <Link key={t.id} href={`/dashboard/center/competitions/${id}/tournaments/${t.id}`}>
+                  <Link key={t.id} href={`/dashboard/center/competitions/${id}/tournaments/${t.id}`} className="block">
                     <Card className="hover:shadow-sm transition-shadow cursor-pointer">
                       <CardContent className="py-3 flex items-center justify-between">
                         <span className="text-sm font-medium">{t.name}</span>
@@ -137,7 +148,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
             ) : (
               <div className="space-y-2">
                 {ladders.map((l: any) => (
-                  <Link key={l.id} href={`/dashboard/center/competitions/${id}/ladders/${l.id}`}>
+                  <Link key={l.id} href={`/dashboard/center/competitions/${id}/ladders/${l.id}`} className="block">
                     <Card className="hover:shadow-sm transition-shadow cursor-pointer">
                       <CardContent className="py-3 flex items-center justify-between">
                         <span className="text-sm font-medium">{l.name}</span>
@@ -180,6 +191,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
                 <Link
                   key={season.id}
                   href={`/dashboard/center/competitions/${id}/seasons/${season.id}`}
+                  className="block"
                 >
                   <Card className="hover:shadow-md transition-shadow cursor-pointer">
                     <CardHeader className="py-4">

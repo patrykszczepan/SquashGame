@@ -9,6 +9,7 @@ import { calculateTable } from "@/lib/scoring/engine"
 import type { ScoringConfig, Match } from "@/lib/types"
 import { LeaguePlayersPanel } from "./LeaguePlayersPanel"
 import { GenerateScheduleButton } from "./GenerateScheduleButton"
+import { LeagueActions } from "./LeagueActions"
 
 export default async function LeagueDetailPage({
   params,
@@ -114,9 +115,21 @@ export default async function LeagueDetailPage({
           <span>/</span>
           <span>{league.name}</span>
         </div>
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">{league.name}</h1>
-          <Badge variant="outline">Liga {league.level}</Badge>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold">{league.name}</h1>
+            <Badge variant="outline">Liga {league.level}</Badge>
+            {league.is_archived && (
+              <Badge variant="secondary">Zarchiwizowana</Badge>
+            )}
+          </div>
+          <LeagueActions
+            leagueId={leagueId}
+            leagueName={league.name}
+            isArchived={league.is_archived ?? false}
+            competitionId={competitionId}
+            seasonId={seasonId}
+          />
         </div>
       </div>
 

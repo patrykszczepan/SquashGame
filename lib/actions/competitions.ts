@@ -72,6 +72,7 @@ export async function getMyCompetitions() {
     .from("competitions")
     .select("*, seasons(id, name, status)")
     .eq("center_id", center.id)
+    .order("is_archived", { ascending: true })
     .order("created_at", { ascending: false })
 
   return data ?? []
@@ -484,6 +485,54 @@ export async function joinCompetitionByCode(code: string) {
     .eq("id", token.id)
 
   revalidatePath("/dashboard/player/leagues")
+  return {}
+}
+
+// ---- competition archive / delete -------------------------------------------
+
+async function verifyCompetitionOwnership(supabase: any, competitionId: string, centerId: string) {
+  const { data } = await supabase
+    .from("competitions")
+    .select("id")
+    .eq("id", competitionId)
+    .eq("center_id", centerId)
+    .single()
+  return !!data
+}
+
+export async function archiveCompetition(competitionId: string, archive: boolean) {
+  const center = await getMyCenter()
+  if (!center) return { error: "Brak centrum." }
+
+  const supabase = await createClient()
+  const owned = await verifyCompetitionOwnership(supabase, competitionId, center.id)
+  if (!owned) return { error: "Brak dostępu." }
+
+  const { error } = await supabase
+    .from("competitions")
+    .update({ is_archived: archive, updated_at: new Date().toISOString() })
+    .eq("id", competitionId)
+
+  if (error) return { error: error.message }
+  revalidatePath("/dashboard/center/competitions")
+  return {}
+}
+
+export async function deleteCompetition(competitionId: string) {
+  const center = await getMyCenter()
+  if (!center) return { error: "Brak centrum." }
+
+  const supabase = await createClient()
+  const owned = await verifyCompetitionOwnership(supabase, competitionId, center.id)
+  if (!owned) return { error: "Brak dostępu." }
+
+  const { error } = await supabase
+    .from("competitions")
+    .delete()
+    .eq("id", competitionId)
+
+  if (error) return { error: error.message }
+  revalidatePath("/dashboard/center/competitions")
   return {}
 }
 

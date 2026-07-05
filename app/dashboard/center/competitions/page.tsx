@@ -56,15 +56,21 @@ export default async function CompetitionsPage() {
           {competitions.map((comp: any) => {
             const activeSeason = (comp.seasons ?? []).find((s: any) => s.status === "active")
             const draftSeasons = (comp.seasons ?? []).filter((s: any) => s.status === "draft").length
+            const isArchived = comp.is_archived ?? false
 
             return (
               <Link key={comp.id} href={`/dashboard/center/competitions/${comp.id}`}>
-                <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <Card className={`hover:shadow-md transition-shadow cursor-pointer ${isArchived ? "opacity-60" : ""}`}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <Trophy className="h-5 w-5 text-muted-foreground" />
-                        <CardTitle className="text-lg">{comp.name}</CardTitle>
+                        <Trophy className={`h-5 w-5 ${isArchived ? "text-muted-foreground/50" : "text-muted-foreground"}`} />
+                        <div className="flex items-center gap-2">
+                          <CardTitle className="text-lg">{comp.name}</CardTitle>
+                          {isArchived && (
+                            <Badge variant="outline" className="text-xs">Zarchiwizowane</Badge>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={comp.visibility === "public" ? "default" : "secondary"}>
@@ -76,7 +82,9 @@ export default async function CompetitionsPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      {activeSeason ? (
+                      {isArchived ? (
+                        <span>Zarchiwizowane</span>
+                      ) : activeSeason ? (
                         <span className="flex items-center gap-1">
                           <span className="h-2 w-2 rounded-full bg-green-500 inline-block" />
                           {t("activeSeason")}: {activeSeason.name}

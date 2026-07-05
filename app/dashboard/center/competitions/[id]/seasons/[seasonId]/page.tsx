@@ -143,21 +143,28 @@ export default async function SeasonDetailPage({
             {leagues.map((league: any) => {
               const playerCount = league.league_players?.[0]?.count ?? 0
               const hasSchedule = (league.rounds?.[0]?.count ?? 0) > 0
+              const isArchived = league.is_archived ?? false
 
               return (
                 <Link
                   key={league.id}
                   href={`/dashboard/center/competitions/${competitionId}/seasons/${seasonId}/leagues/${league.id}`}
+                  className="block"
                 >
-                  <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                  <Card className={`hover:shadow-md transition-shadow cursor-pointer ${isArchived ? "opacity-60" : ""}`}>
                     <CardHeader className="py-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary text-sm font-bold">
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${isArchived ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"}`}>
                             {league.level}
                           </div>
                           <div>
-                            <p className="font-medium">{league.name}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">{league.name}</p>
+                              {isArchived && (
+                                <Badge variant="outline" className="text-xs">Zarchiwizowana</Badge>
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground">
                               {league.round_robin_mode === "double"
                                 ? "Każdy z każdym × 2"
