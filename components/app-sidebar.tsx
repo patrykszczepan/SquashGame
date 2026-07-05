@@ -64,8 +64,6 @@ export function AppSidebar({ role, displayName, email }: AppSidebarProps) {
     { title: tNav("player.tournaments"), icon: Trophy, url: "/dashboard/player/tournaments" },
     { title: tNav("player.ladders"), icon: Swords, url: "/dashboard/player/ladders" },
     { title: tNav("player.ranking"), icon: Medal, url: "/dashboard/player/ranking" },
-    { title: "Mój profil", icon: Users, url: "/dashboard/player/profile" },
-    { title: tNav("player.settings"), icon: Settings, url: "/dashboard/player/settings" },
   ]
 
   const adminNav = [
@@ -141,11 +139,13 @@ export function AppSidebar({ role, displayName, email }: AppSidebarProps) {
                     role === "center"
                       ? "/dashboard/center/settings"
                       : role === "player"
-                      ? "/dashboard/player/settings"
+                      ? "/dashboard/player/profile"
                       : "/dashboard/admin/settings"
                   }>
-                    <Settings className="mr-2 h-4 w-4" />
-                    {tUser("accountSettings")}
+                    {role === "player"
+                      ? <><Users className="mr-2 h-4 w-4" />Mój profil</>
+                      : <><Settings className="mr-2 h-4 w-4" />{tUser("accountSettings")}</>
+                    }
                   </a>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
