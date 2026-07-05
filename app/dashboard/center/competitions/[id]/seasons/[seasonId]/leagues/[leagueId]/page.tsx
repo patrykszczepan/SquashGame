@@ -28,69 +28,75 @@ export default async function LeagueDetailPage({
     .single()
   if (!center) redirect("/dashboard/center")
 
-  // Verify league ownership via season → competition → center
-  const { data: ownerCheck } = await supabase
-    .from("leagues")
-    .select("id, seasons!inner(name, competitions!inner(name, center_id))")
-    .eq("id", leagueId)
-    .single()
-
-  const ownerSeason = Array.isArray(ownerCheck?.seasons) ? ownerCheck.seasons[0] : ownerCheck?.seasons
-  const ownerComp = Array.isArray(ownerSeason?.competitions) ? ownerSeason.competitions[0] : ownerSeason?.competitions
-  if (!ownerCheck || ownerComp?.center_id !== center.id) notFound()
-
-  // Fetch league with all related data (scoring_configs fetched separately to avoid FK ambiguity)
+  // Fetch league — RLS handles access control
   const { data: league } = await supabase
     .from("leagues")
-    .select(`
-      *,
-      seasons!inner(id, name, competition_id),
-      league_players(
-        id, profile_id, position,
-        players(first_name, last_name)
-      ),
-      rounds(
-        id, name, number, deadline,
-        matches(
-          id, player_a_id, player_b_id, status, winner_id,
-          walkover_for_id, result_source, submitted_by,
-          match_sets(set_number, points_a, points_b)
-        )
-      )
-    `)
+    .select("*")
     .eq("id", leagueId)
     .single()
-
   if (!league) notFound()
 
-  const leagueSeason = Array.isArray(league.seasons) ? league.seasons[0] : league.seasons
+  // Fetch season
+  const { data: season } = await supabase
+    .from("seasons")
+    .select("id, name, competition_id")
+    .eq("id", league.season_id)
+    .single()
+  if (!season) notFound()
 
-  // Fetch scoring config separately
+  // Fetch competition — verify center ownership
+  const { data: competition } = await supabase
+    .from("competitions")
+    .select("id, name, center_id")
+    .eq("id", season.competition_id)
+    .single()
+  if (!competition || competition.center_id !== center.id) notFound()
+
+  // Fetch scoring config
   const { data: scoringConfigRow } = await supabase
     .from("scoring_configs")
     .select("config")
     .eq("league_id", leagueId)
     .maybeSingle()
 
-  // Fetch competition players not yet in this league (for assignment)
+  // Fetch league players
+  const { data: leaguePlayersRaw } = await supabase
+    .from("league_players")
+    .select("id, profile_id, position, players(first_name, last_name)")
+    .eq("league_id", leagueId)
+
+  // Fetch rounds with matches
+  const { data: roundsRaw } = await supabase
+    .from("rounds")
+    .select(`
+      id, name, number, deadline,
+      matches(
+        id, player_a_id, player_b_id, status, winner_id,
+        walkover_for_id, result_source, submitted_by,
+        match_sets(set_number, points_a, points_b)
+      )
+    `)
+    .eq("league_id", leagueId)
+    .order("number")
+
+  // Fetch competition players not yet in this league
   const { data: compPlayers } = await supabase
     .from("competition_players")
     .select("profile_id, players!inner(first_name, last_name)")
-    .eq("competition_id", leagueSeason.competition_id)
+    .eq("competition_id", season.competition_id)
     .eq("invitation_status", "accepted")
 
-  const leaguePlayerIds = new Set(
-    (league.league_players ?? []).map((lp: any) => lp.profile_id)
-  )
+  const leaguePlayers = (leaguePlayersRaw ?? []) as any[]
+  const rounds = (roundsRaw ?? []) as any[]
+
+  const leaguePlayerIds = new Set(leaguePlayers.map((lp: any) => lp.profile_id))
 
   const availablePlayers = (compPlayers ?? []).filter(
     (cp: any) => !leaguePlayerIds.has(cp.profile_id)
   )
 
   // Flatten matches from all rounds
-  const allMatches: Match[] = (league.rounds ?? []).flatMap(
-    (r: any) => r.matches ?? []
-  )
+  const allMatches: Match[] = rounds.flatMap((r: any) => r.matches ?? [])
   const hasSchedule = allMatches.length > 0
 
   // Calculate table
@@ -105,17 +111,12 @@ export default async function LeagueDetailPage({
       tiebreaker: ["points", "head_to_head", "set_ratio", "small_points", "matches_played"],
     }
 
-  const leaguePlayers = (league.league_players ?? []) as any[]
   const playerRefs = leaguePlayers.map((lp: any) => ({
     id: lp.profile_id,
     name: `${lp.players?.first_name ?? ""} ${lp.players?.last_name ?? ""}`.trim(),
   }))
 
   const table = calculateTable(playerRefs, allMatches, scoringConfig)
-
-  const rounds = ((league.rounds ?? []) as any[]).sort(
-    (a: any, b: any) => a.number - b.number
-  )
 
   return (
     <div className="space-y-6">
@@ -125,11 +126,11 @@ export default async function LeagueDetailPage({
           <Link href="/dashboard/center/competitions" className="hover:underline">Rozgrywki</Link>
           <span>/</span>
           <Link href={`/dashboard/center/competitions/${competitionId}`} className="hover:underline">
-            {ownerComp?.name ?? "Rozgrywki"}
+            {competition.name}
           </Link>
           <span>/</span>
           <Link href={`/dashboard/center/competitions/${competitionId}/seasons/${seasonId}`} className="hover:underline">
-            {leagueSeason?.name ?? "Sezon"}
+            {season.name}
           </Link>
           <span>/</span>
           <span>{league.name}</span>
