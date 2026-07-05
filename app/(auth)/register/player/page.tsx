@@ -16,13 +16,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { User } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { registerPlayer } from "./actions"
@@ -50,8 +43,6 @@ function GoogleIcon() {
   )
 }
 
-const SKILL_LEVELS = ["beginner", "intermediate", "advanced"] as const
-
 export default function RegisterPlayerPage() {
   const t = useTranslations("auth.registerPlayer")
   const searchParams = useSearchParams()
@@ -65,7 +56,6 @@ export default function RegisterPlayerPage() {
     first_name: "",
     last_name: "",
     phone: "",
-    skill_level: "beginner",
   })
 
   function set(field: string, value: string) {
@@ -157,34 +147,14 @@ export default function RegisterPlayerPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="phone">{t("phone")}</Label>
-                <Input
-                  id="phone"
-                  placeholder={t("phonePlaceholder")}
-                  value={form.phone}
-                  onChange={(e) => set("phone", e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="skill_level">{t("skillLevel")}</Label>
-                <Select
-                  value={form.skill_level}
-                  onValueChange={(v) => set("skill_level", v)}
-                >
-                  <SelectTrigger id="skill_level" className="w-full">
-                    <SelectValue placeholder={t("skillLevelPlaceholder")} />
-                  </SelectTrigger>
-                  <SelectContent className="w-[--radix-select-trigger-width]">
-                    {SKILL_LEVELS.map((level) => (
-                      <SelectItem key={level} value={level}>
-                        {t(`skillLevels.${level}`)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">{t("phone")}</Label>
+              <Input
+                id="phone"
+                placeholder={t("phonePlaceholder")}
+                value={form.phone}
+                onChange={(e) => set("phone", e.target.value)}
+              />
             </div>
             <div className="border-t pt-4 space-y-4">
               <div className="space-y-2">

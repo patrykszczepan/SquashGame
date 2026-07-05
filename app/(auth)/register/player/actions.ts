@@ -9,7 +9,6 @@ export async function registerPlayer(data: {
   first_name: string
   last_name: string
   phone: string
-  skill_level: string
   joinCode?: string
 }): Promise<{ error: string } | void> {
   const supabase = await createClient()
@@ -43,7 +42,6 @@ export async function registerPlayer(data: {
       first_name: data.first_name,
       last_name: data.last_name,
       phone: data.phone || null,
-      skill_level: data.skill_level,
     })
 
   if (playerError) {
