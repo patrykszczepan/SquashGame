@@ -176,6 +176,7 @@ export interface Season {
   end_date?: string
   default_promotions: number
   default_demotions: number
+  default_round_robin_mode: "single" | "double"
   sets_to_win: number
   scoring_type: "simple" | "advanced"
   default_scoring_config: SeasonScoringConfig | null

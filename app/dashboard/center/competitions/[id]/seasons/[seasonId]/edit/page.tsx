@@ -25,6 +25,7 @@ export default async function EditSeasonPage({
     .select(`
       id, name, status, start_date, end_date,
       sets_to_win, scoring_type, default_scoring_config,
+      default_round_robin_mode, default_promotions, default_demotions,
       competitions!inner(id, name, center_id)
     `)
     .eq("id", seasonId)

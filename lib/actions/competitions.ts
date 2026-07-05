@@ -86,6 +86,10 @@ export async function createSeason(form: {
   end_date?: string
   sets_to_win?: number
   scoring_config?: SeasonScoringConfig
+  default_round_robin_mode?: "single" | "double"
+  default_promotions?: number
+  default_demotions?: number
+  league_count?: number
 }) {
   const center = await getMyCenter()
   if (!center) return { error: "Brak centrum." }
@@ -104,8 +108,11 @@ export async function createSeason(form: {
     type: "advanced",
     results: defaultAdvancedResults(setsToWin),
   }
+  const roundRobinMode = form.default_round_robin_mode ?? "single"
+  const promotions = form.default_promotions ?? 2
+  const demotions = form.default_demotions ?? 2
 
-  const { data, error } = await supabase
+  const { data: season, error } = await supabase
     .from("seasons")
     .insert({
       competition_id: form.competition_id,
@@ -116,13 +123,34 @@ export async function createSeason(form: {
       sets_to_win: setsToWin,
       scoring_type: scoringConfig.type,
       default_scoring_config: scoringConfig,
+      default_round_robin_mode: roundRobinMode,
+      default_promotions: promotions,
+      default_demotions: demotions,
     })
     .select("id")
     .single()
 
   if (error) return { error: error.message }
+
+  // Auto-generate leagues if requested
+  const leagueCount = form.league_count ?? 0
+  if (leagueCount > 0) {
+    for (let i = 1; i <= leagueCount; i++) {
+      await createLeagueRecord(supabase, {
+        season_id: season.id,
+        name: `Liga ${i}`,
+        level: i,
+        round_robin_mode: roundRobinMode,
+        promotions: i < leagueCount ? promotions : 0,
+        demotions: i > 1 ? demotions : 0,
+        sets_to_win: setsToWin,
+        scoring_config: scoringConfig,
+      })
+    }
+  }
+
   revalidatePath(`/dashboard/center/competitions/${form.competition_id}`)
-  return { id: data.id }
+  return { id: season.id }
 }
 
 export async function updateSeason(
@@ -133,6 +161,9 @@ export async function updateSeason(
     end_date?: string
     sets_to_win: number
     scoring_config: SeasonScoringConfig
+    default_round_robin_mode: "single" | "double"
+    default_promotions: number
+    default_demotions: number
   }
 ) {
   const center = await getMyCenter()
@@ -160,6 +191,9 @@ export async function updateSeason(
       sets_to_win: form.sets_to_win,
       scoring_type: form.scoring_config.type,
       default_scoring_config: form.scoring_config,
+      default_round_robin_mode: form.default_round_robin_mode,
+      default_promotions: form.default_promotions,
+      default_demotions: form.default_demotions,
       updated_at: new Date().toISOString(),
     })
     .eq("id", seasonId)
@@ -186,6 +220,55 @@ export async function activateSeason(seasonId: string) {
 
 // ---- leagues ----------------------------------------------------------------
 
+// Internal helper — creates one league + scoring_config without auth checks
+async function createLeagueRecord(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  opts: {
+    season_id: string
+    name: string
+    level: number
+    round_robin_mode: "single" | "double"
+    promotions?: number
+    demotions?: number
+    sets_to_win: number
+    scoring_config: SeasonScoringConfig
+  }
+) {
+  const matchFormat = { type: "race_to" as const, sets_to_win: opts.sets_to_win }
+  const leagueScoringConfig = buildLeagueScoringConfig(opts.sets_to_win, opts.scoring_config)
+
+  const { data: league, error: leagueErr } = await supabase
+    .from("leagues")
+    .insert({
+      season_id: opts.season_id,
+      name: opts.name.trim(),
+      level: opts.level,
+      round_robin_mode: opts.round_robin_mode,
+      match_format: matchFormat,
+      promotions: opts.promotions ?? null,
+      demotions: opts.demotions ?? null,
+    })
+    .select("id")
+    .single()
+
+  if (leagueErr) return { error: leagueErr.message }
+
+  const { data: scoringConfig, error: scErr } = await supabase
+    .from("scoring_configs")
+    .insert({ league_id: league.id, template_id: null, config: leagueScoringConfig })
+    .select("id")
+    .single()
+
+  if (scErr) return { error: scErr.message }
+
+  await supabase
+    .from("leagues")
+    .update({ scoring_config_id: scoringConfig.id })
+    .eq("id", league.id)
+
+  return { id: league.id }
+}
+
 export async function createLeague(form: {
   season_id: string
   name: string
@@ -199,58 +282,33 @@ export async function createLeague(form: {
 
   const supabase = await createClient()
 
-  // Read season's match format and scoring config
   const { data: season } = await supabase
     .from("seasons")
-    .select("sets_to_win, scoring_type, default_scoring_config")
+    .select("sets_to_win, default_scoring_config, default_round_robin_mode, default_promotions, default_demotions")
     .eq("id", form.season_id)
     .single()
 
   const setsToWin = season?.sets_to_win ?? 3
-  const seasonScoringConfig: SeasonScoringConfig = (season?.default_scoring_config as SeasonScoringConfig) ?? {
-    type: "advanced",
-    results: defaultAdvancedResults(setsToWin),
-  }
+  const seasonScoringConfig: SeasonScoringConfig =
+    (season?.default_scoring_config as SeasonScoringConfig) ?? {
+      type: "advanced",
+      results: defaultAdvancedResults(setsToWin),
+    }
 
-  const matchFormat = { type: "race_to" as const, sets_to_win: setsToWin }
-  const leagueScoringConfig = buildLeagueScoringConfig(setsToWin, seasonScoringConfig)
+  const result = await createLeagueRecord(supabase, {
+    season_id: form.season_id,
+    name: form.name,
+    level: form.level,
+    round_robin_mode: form.round_robin_mode,
+    promotions: form.promotions,
+    demotions: form.demotions,
+    sets_to_win: setsToWin,
+    scoring_config: seasonScoringConfig,
+  })
 
-  const { data: league, error: leagueErr } = await supabase
-    .from("leagues")
-    .insert({
-      season_id: form.season_id,
-      name: form.name.trim(),
-      level: form.level,
-      round_robin_mode: form.round_robin_mode,
-      match_format: matchFormat,
-      promotions: form.promotions ?? null,
-      demotions: form.demotions ?? null,
-    })
-    .select("id")
-    .single()
-
-  if (leagueErr) return { error: leagueErr.message }
-
-  // Create scoring config snapshot from season's config
-  const { data: scoringConfig, error: scErr } = await supabase
-    .from("scoring_configs")
-    .insert({
-      league_id: league.id,
-      template_id: null,
-      config: leagueScoringConfig,
-    })
-    .select("id")
-    .single()
-
-  if (scErr) return { error: scErr.message }
-
-  await supabase
-    .from("leagues")
-    .update({ scoring_config_id: scoringConfig.id })
-    .eq("id", league.id)
-
+  if (result.error) return { error: result.error }
   revalidatePath("/dashboard/center/competitions")
-  return { id: league.id }
+  return { id: result.id }
 }
 
 export async function assignPlayerToLeague(leagueId: string, profileId: string) {

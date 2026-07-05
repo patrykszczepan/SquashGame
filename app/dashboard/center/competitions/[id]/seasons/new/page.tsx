@@ -13,8 +13,33 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
 
 type ScoringType = "simple" | "advanced"
+type RoundRobinMode = "single" | "double"
 
 const SETS_QUICK = [1, 2, 3, 4, 5]
+
+function ToggleButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-1 py-2 rounded-md border text-sm font-medium transition-colors ${
+        active
+          ? "bg-primary text-primary-foreground border-primary"
+          : "bg-background text-foreground border-border hover:bg-muted"
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
 
 export default function NewSeasonPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: competitionId } = use(params)
@@ -22,15 +47,17 @@ export default function NewSeasonPage({ params }: { params: Promise<{ id: string
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
-  // Basic info
   const [name, setName] = useState("")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
 
-  // Match format
   const [setsToWin, setSetsToWin] = useState(3)
 
-  // Scoring
+  const [roundRobinMode, setRoundRobinMode] = useState<RoundRobinMode>("single")
+  const [promotions, setPromotions] = useState(2)
+  const [demotions, setDemotions] = useState(2)
+  const [leagueCount, setLeagueCount] = useState(0)
+
   const [scoringType, setScoringType] = useState<ScoringType>("advanced")
   const [simpleWin, setSimpleWin] = useState(3)
   const [simpleLoss, setSimpleLoss] = useState(0)
@@ -70,6 +97,10 @@ export default function NewSeasonPage({ params }: { params: Promise<{ id: string
       end_date: endDate || undefined,
       sets_to_win: setsToWin,
       scoring_config: scoringConfig,
+      default_round_robin_mode: roundRobinMode,
+      default_promotions: promotions,
+      default_demotions: demotions,
+      league_count: leagueCount,
     })
 
     if (result.error) { setError(result.error); setLoading(false); return }
@@ -77,6 +108,9 @@ export default function NewSeasonPage({ params }: { params: Promise<{ id: string
   }
 
   const resultKeys = Array.from({ length: setsToWin }, (_, i) => `${setsToWin}:${i}`)
+  const leaguePreview = leagueCount > 0
+    ? Array.from({ length: Math.min(leagueCount, 5) }, (_, i) => `Liga ${i + 1}`)
+    : []
 
   return (
     <div className="max-w-2xl">
@@ -88,7 +122,7 @@ export default function NewSeasonPage({ params }: { params: Promise<{ id: string
         </div>
         <h1 className="text-2xl font-bold">Nowy sezon</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Ustawienia dziedziczone przez wszystkie ligi w sezonie — można nadpisać per liga.
+          Ustawienia dziedziczone przez wszystkie ligi — można nadpisać per liga.
         </p>
       </div>
 
@@ -101,14 +135,10 @@ export default function NewSeasonPage({ params }: { params: Promise<{ id: string
 
         {/* Dane sezonu */}
         <Card>
-          <CardHeader>
-            <CardTitle>Dane sezonu</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>Dane sezonu</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">
-                Nazwa sezonu <span className="text-destructive">*</span>
-              </Label>
+              <Label htmlFor="name">Nazwa sezonu <span className="text-destructive">*</span></Label>
               <Input
                 id="name"
                 placeholder="np. Sezon 2 — lato 2026"
@@ -118,22 +148,12 @@ export default function NewSeasonPage({ params }: { params: Promise<{ id: string
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="start_date">Data rozpoczęcia</Label>
-                <Input
-                  id="start_date"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
+                <Label>Data rozpoczęcia</Label>
+                <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="end_date">Data zakończenia</Label>
-                <Input
-                  id="end_date"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
+                <Label>Data zakończenia</Label>
+                <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </div>
             </div>
           </CardContent>
@@ -143,25 +163,14 @@ export default function NewSeasonPage({ params }: { params: Promise<{ id: string
         <Card>
           <CardHeader>
             <CardTitle>Format meczu</CardTitle>
-            <CardDescription>
-              Do ilu zwycięskich gemów grany jest mecz.
-            </CardDescription>
+            <CardDescription>Do ilu zwycięskich gemów grany jest mecz.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex gap-2 items-center">
               {SETS_QUICK.map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => handleSetsToWinChange(n)}
-                  className={`flex-1 py-2 rounded-md border text-sm font-medium transition-colors ${
-                    setsToWin === n
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background text-foreground border-border hover:bg-muted"
-                  }`}
-                >
+                <ToggleButton key={n} active={setsToWin === n} onClick={() => handleSetsToWinChange(n)}>
                   {n}
-                </button>
+                </ToggleButton>
               ))}
               <input
                 type="number"
@@ -174,9 +183,7 @@ export default function NewSeasonPage({ params }: { params: Promise<{ id: string
                 }}
                 placeholder="inny"
                 className={`flex-1 py-2 px-2 rounded-md border text-sm text-center transition-colors ${
-                  setsToWin > 5
-                    ? "border-primary bg-primary/5"
-                    : "border-border bg-background"
+                  setsToWin > 5 ? "border-primary bg-primary/5" : "border-border bg-background"
                 } focus:outline-none focus:ring-2 focus:ring-ring`}
               />
             </div>
@@ -187,30 +194,103 @@ export default function NewSeasonPage({ params }: { params: Promise<{ id: string
           </CardContent>
         </Card>
 
+        {/* Domyślne ustawienia lig */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Domyślne ustawienia lig</CardTitle>
+            <CardDescription>Każda liga w sezonie dziedziczy te wartości — można zmienić per liga.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Każdy z każdym</Label>
+              <div className="flex gap-2">
+                <ToggleButton active={roundRobinMode === "single"} onClick={() => setRoundRobinMode("single")}>
+                  × 1 (jeden raz)
+                </ToggleButton>
+                <ToggleButton active={roundRobinMode === "double"} onClick={() => setRoundRobinMode("double")}>
+                  × 2 (rewanż)
+                </ToggleButton>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="promotions">Awanse (miejsc)</Label>
+                <Input
+                  id="promotions"
+                  type="number"
+                  min="0"
+                  value={promotions}
+                  onChange={(e) => setPromotions(parseInt(e.target.value, 10) || 0)}
+                />
+                <p className="text-xs text-muted-foreground">Ilu zawodników awansuje z ligi.</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="demotions">Spadki (miejsc)</Label>
+                <Input
+                  id="demotions"
+                  type="number"
+                  min="0"
+                  value={demotions}
+                  onChange={(e) => setDemotions(parseInt(e.target.value, 10) || 0)}
+                />
+                <p className="text-xs text-muted-foreground">Ilu zawodników spada z ligi.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Ligi w sezonie */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Generowanie lig</CardTitle>
+            <CardDescription>
+              Wpisz ile lig ma mieć sezon — zostaną stworzone automatycznie z powyższymi ustawieniami.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-3">
+              <Input
+                type="number"
+                min="0"
+                max="20"
+                value={leagueCount || ""}
+                onChange={(e) => setLeagueCount(parseInt(e.target.value, 10) || 0)}
+                placeholder="0"
+                className="w-28"
+              />
+              <span className="text-sm text-muted-foreground">
+                {leagueCount === 0
+                  ? "Ligi dodasz ręcznie po utworzeniu sezonu."
+                  : `Zostanie utworzone ${leagueCount} ${leagueCount === 1 ? "liga" : leagueCount < 5 ? "ligi" : "lig"}.`}
+              </span>
+            </div>
+            {leaguePreview.length > 0 && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {leaguePreview.map((l) => (
+                  <span key={l} className="text-xs bg-muted rounded-md px-2.5 py-1 font-medium">{l}</span>
+                ))}
+                {leagueCount > 5 && (
+                  <span className="text-xs text-muted-foreground py-1">
+                    + {leagueCount - 5} więcej...
+                  </span>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Punktacja */}
         <Card>
           <CardHeader>
             <CardTitle>Punktacja ligowa</CardTitle>
-            <CardDescription>
-              Ile punktów do tabeli zdobywa zawodnik za wynik meczu.
-            </CardDescription>
+            <CardDescription>Ile punktów do tabeli zdobywa zawodnik za wynik meczu.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Toggle prosta / zaawansowana */}
             <div className="flex gap-2">
               {(["simple", "advanced"] as ScoringType[]).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setScoringType(t)}
-                  className={`px-4 py-1.5 rounded-md border text-sm font-medium transition-colors ${
-                    scoringType === t
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background text-foreground border-border hover:bg-muted"
-                  }`}
-                >
+                <ToggleButton key={t} active={scoringType === t} onClick={() => setScoringType(t)}>
                   {t === "simple" ? "Prosta" : "Zaawansowana"}
-                </button>
+                </ToggleButton>
               ))}
             </div>
 
@@ -296,7 +376,7 @@ export default function NewSeasonPage({ params }: { params: Promise<{ id: string
                   </table>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Wyniki odwrotne (przegrane) generowane automatycznie. Im trudniejsza wygrana, tym mniej punktów.
+                  Im trudniejsza wygrana, tym mniej punktów — premiuje walkę o każdego gema.
                 </p>
               </div>
             )}
@@ -305,7 +385,11 @@ export default function NewSeasonPage({ params }: { params: Promise<{ id: string
 
         <div className="flex gap-3 pb-6">
           <Button type="submit" disabled={loading}>
-            {loading ? "Tworzenie..." : "Utwórz sezon"}
+            {loading
+              ? "Tworzenie..."
+              : leagueCount > 0
+              ? `Utwórz sezon i ${leagueCount} ${leagueCount === 1 ? "ligę" : leagueCount < 5 ? "ligi" : "lig"}`
+              : "Utwórz sezon"}
           </Button>
           <Button variant="outline" asChild>
             <Link href={`/dashboard/center/competitions/${competitionId}`}>Anuluj</Link>

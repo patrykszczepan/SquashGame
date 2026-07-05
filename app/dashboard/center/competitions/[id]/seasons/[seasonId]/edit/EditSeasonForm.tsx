@@ -12,6 +12,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
 
 type ScoringType = "simple" | "advanced"
+type RoundRobinMode = "single" | "double"
+
 const SETS_QUICK = [1, 2, 3, 4, 5]
 
 interface Props {
@@ -26,21 +28,47 @@ interface Props {
     sets_to_win: number
     scoring_type: string
     default_scoring_config: SeasonScoringConfig | null
+    default_round_robin_mode: string
+    default_promotions: number
+    default_demotions: number
   }
 }
 
-function initAdvancedResults(
-  setsToWin: number,
-  config: SeasonScoringConfig | null
-): Record<string, [number, number]> {
+function initAdvancedResults(setsToWin: number, config: SeasonScoringConfig | null): Record<string, [number, number]> {
   if (config?.type === "advanced" && config.results) {
-    // Check if results match current setsToWin
     const firstKey = Object.keys(config.results)[0]
     if (firstKey && parseInt(firstKey.split(":")[0], 10) === setsToWin) {
       return config.results
     }
   }
   return defaultAdvancedResults(setsToWin)
+}
+
+function ToggleButton({
+  active,
+  onClick,
+  disabled,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  disabled?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex-1 py-2 rounded-md border text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+        active
+          ? "bg-primary text-primary-foreground border-primary"
+          : "bg-background text-foreground border-border hover:bg-muted"
+      }`}
+    >
+      {children}
+    </button>
+  )
 }
 
 export function EditSeasonForm({ competitionId, competitionName, season }: Props) {
@@ -53,18 +81,19 @@ export function EditSeasonForm({ competitionId, competitionName, season }: Props
   const [startDate, setStartDate] = useState(season.start_date ?? "")
   const [endDate, setEndDate] = useState(season.end_date ?? "")
   const [setsToWin, setSetsToWin] = useState(season.sets_to_win ?? 3)
+  const [roundRobinMode, setRoundRobinMode] = useState<RoundRobinMode>(
+    (season.default_round_robin_mode as RoundRobinMode) ?? "single"
+  )
+  const [promotions, setPromotions] = useState(season.default_promotions ?? 2)
+  const [demotions, setDemotions] = useState(season.default_demotions ?? 2)
   const [scoringType, setScoringType] = useState<ScoringType>(
     (season.scoring_type as ScoringType) ?? "advanced"
   )
   const [simpleWin, setSimpleWin] = useState(
-    season.default_scoring_config?.type === "simple"
-      ? season.default_scoring_config.win
-      : 3
+    season.default_scoring_config?.type === "simple" ? season.default_scoring_config.win : 3
   )
   const [simpleLoss, setSimpleLoss] = useState(
-    season.default_scoring_config?.type === "simple"
-      ? season.default_scoring_config.loss
-      : 0
+    season.default_scoring_config?.type === "simple" ? season.default_scoring_config.loss : 0
   )
   const [advancedResults, setAdvancedResults] = useState<Record<string, [number, number]>>(
     initAdvancedResults(season.sets_to_win ?? 3, season.default_scoring_config)
@@ -103,6 +132,9 @@ export function EditSeasonForm({ competitionId, competitionName, season }: Props
       end_date: endDate || undefined,
       sets_to_win: setsToWin,
       scoring_config: scoringConfig,
+      default_round_robin_mode: roundRobinMode,
+      default_promotions: promotions,
+      default_demotions: demotions,
     })
 
     setLoading(false)
@@ -124,68 +156,41 @@ export function EditSeasonForm({ competitionId, competitionName, season }: Props
             {competitionName}
           </Link>
           <span>/</span>
-          <Link
-            href={`/dashboard/center/competitions/${competitionId}/seasons/${season.id}`}
-            className="hover:underline"
-          >
+          <Link href={`/dashboard/center/competitions/${competitionId}/seasons/${season.id}`} className="hover:underline">
             {season.name}
           </Link>
           <span>/</span>
           <span>Edytuj</span>
         </div>
         <h1 className="text-2xl font-bold">Edytuj sezon</h1>
-        {readonly && (
-          <p className="text-sm text-muted-foreground mt-1">
-            Sezon zakończony — edycja zablokowana.
+        {readonly && <p className="text-sm text-muted-foreground mt-1">Sezon zakończony — edycja zablokowana.</p>}
+        {season.status === "active" && (
+          <p className="text-sm text-amber-600 mt-1">
+            Zmiany dotyczą nowych lig — istniejące ligi zachowują swoje ustawienia.
           </p>
         )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        {success && (
-          <Alert>
-            <AlertDescription>Zapisano zmiany.</AlertDescription>
-          </Alert>
-        )}
+        {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+        {success && <Alert><AlertDescription>Zapisano zmiany.</AlertDescription></Alert>}
 
         {/* Dane sezonu */}
         <Card>
-          <CardHeader>
-            <CardTitle>Dane sezonu</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>Dane sezonu</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Nazwa sezonu <span className="text-destructive">*</span></Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={readonly}
-              />
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} disabled={readonly} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Data rozpoczęcia</Label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  disabled={readonly}
-                />
+                <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} disabled={readonly} />
               </div>
               <div className="space-y-2">
                 <Label>Data zakończenia</Label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  disabled={readonly}
-                />
+                <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} disabled={readonly} />
               </div>
             </div>
           </CardContent>
@@ -200,19 +205,9 @@ export function EditSeasonForm({ competitionId, competitionName, season }: Props
           <CardContent className="space-y-3">
             <div className="flex gap-2 items-center">
               {SETS_QUICK.map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => !readonly && handleSetsToWinChange(n)}
-                  disabled={readonly}
-                  className={`flex-1 py-2 rounded-md border text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                    setsToWin === n
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background text-foreground border-border hover:bg-muted"
-                  }`}
-                >
+                <ToggleButton key={n} active={setsToWin === n} onClick={() => handleSetsToWinChange(n)} disabled={readonly}>
                   {n}
-                </button>
+                </ToggleButton>
               ))}
               <input
                 type="number"
@@ -226,9 +221,7 @@ export function EditSeasonForm({ competitionId, competitionName, season }: Props
                 placeholder="inny"
                 disabled={readonly}
                 className={`flex-1 py-2 px-2 rounded-md border text-sm text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                  setsToWin > 5
-                    ? "border-primary bg-primary/5"
-                    : "border-border bg-background"
+                  setsToWin > 5 ? "border-primary bg-primary/5" : "border-border bg-background"
                 } focus:outline-none focus:ring-2 focus:ring-ring`}
               />
             </div>
@@ -236,11 +229,51 @@ export function EditSeasonForm({ competitionId, competitionName, season }: Props
               Mecz do <strong>{setsToWin}</strong> zwycięskich gemów — możliwe wyniki:{" "}
               <span className="font-mono">{resultKeys.join(", ")}</span> i odwrotne.
             </p>
-            {season.status === "active" && (
-              <p className="text-xs text-amber-600">
-                Uwaga: zmiana formatu w aktywnym sezonie nie wpływa na już istniejące ligi.
-              </p>
-            )}
+          </CardContent>
+        </Card>
+
+        {/* Domyślne ustawienia lig */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Domyślne ustawienia lig</CardTitle>
+            <CardDescription>Każda nowa liga w sezonie dziedziczy te wartości.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Każdy z każdym</Label>
+              <div className="flex gap-2">
+                <ToggleButton active={roundRobinMode === "single"} onClick={() => setRoundRobinMode("single")} disabled={readonly}>
+                  × 1 (jeden raz)
+                </ToggleButton>
+                <ToggleButton active={roundRobinMode === "double"} onClick={() => setRoundRobinMode("double")} disabled={readonly}>
+                  × 2 (rewanż)
+                </ToggleButton>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Awanse (miejsc)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={promotions}
+                  onChange={(e) => setPromotions(parseInt(e.target.value, 10) || 0)}
+                  disabled={readonly}
+                />
+                <p className="text-xs text-muted-foreground">Ilu zawodników awansuje z ligi.</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Spadki (miejsc)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={demotions}
+                  onChange={(e) => setDemotions(parseInt(e.target.value, 10) || 0)}
+                  disabled={readonly}
+                />
+                <p className="text-xs text-muted-foreground">Ilu zawodników spada z ligi.</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -248,26 +281,14 @@ export function EditSeasonForm({ competitionId, competitionName, season }: Props
         <Card>
           <CardHeader>
             <CardTitle>Punktacja ligowa</CardTitle>
-            <CardDescription>
-              Ile punktów do tabeli zdobywa zawodnik za wynik meczu.
-            </CardDescription>
+            <CardDescription>Ile punktów do tabeli zdobywa zawodnik za wynik meczu.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-2">
               {(["simple", "advanced"] as ScoringType[]).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => !readonly && setScoringType(t)}
-                  disabled={readonly}
-                  className={`px-4 py-1.5 rounded-md border text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                    scoringType === t
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background text-foreground border-border hover:bg-muted"
-                  }`}
-                >
+                <ToggleButton key={t} active={scoringType === t} onClick={() => setScoringType(t)} disabled={readonly}>
                   {t === "simple" ? "Prosta" : "Zaawansowana"}
-                </button>
+                </ToggleButton>
               ))}
             </div>
 
@@ -277,9 +298,7 @@ export function EditSeasonForm({ competitionId, competitionName, season }: Props
                   <div className="space-y-2">
                     <Label>Wygrany (pkt)</Label>
                     <Input
-                      type="number"
-                      min="0"
-                      value={simpleWin}
+                      type="number" min="0" value={simpleWin}
                       onChange={(e) => setSimpleWin(parseInt(e.target.value, 10) || 0)}
                       disabled={readonly}
                     />
@@ -287,9 +306,7 @@ export function EditSeasonForm({ competitionId, competitionName, season }: Props
                   <div className="space-y-2">
                     <Label>Przegrany (pkt)</Label>
                     <Input
-                      type="number"
-                      min="0"
-                      value={simpleLoss}
+                      type="number" min="0" value={simpleLoss}
                       onChange={(e) => setSimpleLoss(parseInt(e.target.value, 10) || 0)}
                       disabled={readonly}
                     />
@@ -307,9 +324,7 @@ export function EditSeasonForm({ competitionId, competitionName, season }: Props
                 <div className="rounded-lg border overflow-hidden">
                   <table className="w-full text-sm table-fixed">
                     <colgroup>
-                      <col className="w-1/3" />
-                      <col className="w-1/3" />
-                      <col className="w-1/3" />
+                      <col className="w-1/3" /><col className="w-1/3" /><col className="w-1/3" />
                     </colgroup>
                     <thead>
                       <tr className="bg-muted border-b">
@@ -330,9 +345,7 @@ export function EditSeasonForm({ competitionId, competitionName, season }: Props
                             </td>
                             <td className="py-2 text-center">
                               <Input
-                                type="number"
-                                min="0"
-                                value={winPts}
+                                type="number" min="0" value={winPts}
                                 onChange={(e) => setResultValue(key, 0, e.target.value)}
                                 disabled={readonly}
                                 className="text-center h-9 w-24 mx-auto"
@@ -340,9 +353,7 @@ export function EditSeasonForm({ competitionId, competitionName, season }: Props
                             </td>
                             <td className="py-2 text-center">
                               <Input
-                                type="number"
-                                min="0"
-                                value={lossPts}
+                                type="number" min="0" value={lossPts}
                                 onChange={(e) => setResultValue(key, 1, e.target.value)}
                                 disabled={readonly}
                                 className="text-center h-9 w-24 mx-auto"
