@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { assignPlayerToLeague } from "@/lib/actions/competitions"
+import { assignCenterPlayerToLeague } from "@/lib/actions/leagues"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -27,13 +28,14 @@ interface League { id: string; name: string; level: number }
 interface Season { id: string; name: string; status: string; leagues: League[] }
 
 interface Props {
-  profileId: string
+  profileId?: string
+  centerPlayerId?: string
   playerName: string
   seasons: Season[]
   currentLeagueName?: string
 }
 
-export function AssignCompetitionPlayerDialog({ profileId, playerName, seasons, currentLeagueName }: Props) {
+export function AssignCompetitionPlayerDialog({ profileId, centerPlayerId, playerName, seasons, currentLeagueName }: Props) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [seasonId, setSeasonId] = useState("")
@@ -54,7 +56,11 @@ export function AssignCompetitionPlayerDialog({ profileId, playerName, seasons, 
     if (!leagueId) return
     setSubmitting(true)
     setError("")
-    const res = await assignPlayerToLeague(leagueId, profileId)
+    const res = profileId
+      ? await assignPlayerToLeague(leagueId, profileId)
+      : centerPlayerId
+      ? await assignCenterPlayerToLeague(leagueId, centerPlayerId)
+      : { error: "Brak identyfikatora zawodnika" }
     setSubmitting(false)
     if (res?.error) { setError(res.error); return }
     setOpen(false)

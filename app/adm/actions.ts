@@ -24,7 +24,7 @@ export async function adminLogin(data: {
     .eq("id", authData.user.id)
     .single()
 
-  if (profile?.role !== "admin") {
+  if (profile?.role !== "admin" && profile?.role !== "super_admin") {
     await supabase.auth.signOut()
     return { error: "Brak uprawnień administratora." }
   }

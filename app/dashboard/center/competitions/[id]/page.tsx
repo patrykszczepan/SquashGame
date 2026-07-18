@@ -47,14 +47,17 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
     .single()
   if (!comp) notFound()
 
-  const [players, invitations, tournamentsData, laddersData] = await Promise.all([
+  const [players, invitations, tournamentsData, laddersData, centerPlayersRes] = await Promise.all([
     getCompetitionPlayers(id),
     getCompetitionInvitations(id),
     supabase.from("tournaments").select("id, name, status, format").eq("competition_id", id),
     supabase.from("ladders").select("id, name").eq("competition_id", id),
+    supabase.from("center_players").select("id, first_name, last_name, phone, email")
+      .eq("center_id", center.id).eq("is_archived", false).order("last_name"),
   ])
   const tournaments = tournamentsData.data ?? []
   const ladders = laddersData.data ?? []
+  const centerPlayers = centerPlayersRes.data ?? []
   const seasons = (comp.seasons ?? []).sort((a: any, b: any) => a.status.localeCompare(b.status))
 
   // Build league_id -> league name map from comp.seasons data
@@ -65,16 +68,18 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
     }
   }
 
-  // Fetch league assignments for players in this competition
+  // Fetch league assignments for all players
   const allLeagueIds = Object.keys(leagueNameMap)
   const playerLeagueMap: Record<string, string> = {}
+  const centerPlayerLeagueMap: Record<string, string> = {}
   if (allLeagueIds.length > 0) {
     const { data: lpData } = await supabase
       .from("league_players")
-      .select("profile_id, league_id")
+      .select("profile_id, center_player_id, league_id")
       .in("league_id", allLeagueIds)
     for (const lp of lpData ?? []) {
       if (lp.profile_id) playerLeagueMap[lp.profile_id] = leagueNameMap[lp.league_id] ?? ""
+      if (lp.center_player_id) centerPlayerLeagueMap[lp.center_player_id] = leagueNameMap[lp.league_id] ?? ""
     }
   }
 
@@ -273,58 +278,115 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
         </div>
       </div>
 
-      {/* Players table — full width */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            {t("players.title")} ({players.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="py-0">
-          {players.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">{t("players.empty")}</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="px-4 py-3 text-left font-medium w-8">#</th>
-                  <th className="px-4 py-3 text-left font-medium">Imię</th>
-                  <th className="px-4 py-3 text-left font-medium">Nazwisko</th>
-                  <th className="px-4 py-3 text-left font-medium">Liga</th>
-                  <th className="px-4 py-3 text-left font-medium">Status</th>
-                  <th className="px-4 py-3 w-10"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {players.map((cp: any, idx: number) => {
-                  const firstName = cp.players?.first_name ?? "—"
-                  const lastName = cp.players?.last_name || "—"
-                  const leagueName = playerLeagueMap[cp.profile_id] ?? null
-                  const playerName = `${firstName} ${lastName}`.trim()
-                  return (
-                    <tr key={cp.id} className="border-b last:border-0 hover:bg-muted/30">
-                      <td className="px-4 py-3 text-muted-foreground">{idx + 1}</td>
-                      <td className="px-4 py-3 font-medium">{firstName}</td>
-                      <td className="px-4 py-3">{lastName}</td>
-                      <td className="px-4 py-3">
-                        {leagueName
-                          ? <Badge variant="secondary" className="text-xs font-normal">{leagueName}</Badge>
-                          : <span className="text-xs text-muted-foreground">—</span>
-                        }
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge
-                          variant={cp.invitation_status === "accepted" ? "default" : "secondary"}
-                          className="text-xs"
-                        >
-                          {cp.invitation_status === "accepted" ? "Aktywny" : "Zaproszony"}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        {cp.profile_id && (
+      {/* Players — two side-by-side cards */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Registered players (with accounts) */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Zawodnicy zarejestrowani ({players.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="py-0">
+            {players.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">{t("players.empty")}</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-4 py-3 text-left font-medium w-8">#</th>
+                    <th className="px-4 py-3 text-left font-medium">Imię i nazwisko</th>
+                    <th className="px-4 py-3 text-left font-medium">Liga</th>
+                    <th className="px-4 py-3 w-10"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {players.map((cp: any, idx: number) => {
+                    const firstName = cp.players?.first_name ?? "—"
+                    const lastName = cp.players?.last_name || ""
+                    const leagueName = playerLeagueMap[cp.profile_id] ?? null
+                    const playerName = `${firstName} ${lastName}`.trim()
+                    return (
+                      <tr key={cp.id} className="border-b last:border-0 hover:bg-muted/30">
+                        <td className="px-4 py-3 text-muted-foreground">{idx + 1}</td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium">{playerName || "—"}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {cp.invitation_status === "accepted" ? "Aktywny" : "Zaproszony"}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {leagueName
+                            ? <Badge variant="secondary" className="text-xs font-normal">{leagueName}</Badge>
+                            : <span className="text-xs text-muted-foreground">wolny</span>
+                          }
+                        </td>
+                        <td className="px-4 py-3">
+                          {cp.profile_id && (
+                            <AssignCompetitionPlayerDialog
+                              profileId={cp.profile_id}
+                              playerName={playerName}
+                              seasons={seasons.map((s: any) => ({
+                                id: s.id,
+                                name: s.name,
+                                status: s.status,
+                                leagues: s.leagues ?? [],
+                              }))}
+                              currentLeagueName={leagueName ?? undefined}
+                            />
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Center players (no account) */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Zawodnicy centrum ({centerPlayers.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="py-0">
+            {centerPlayers.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">Brak zawodników centrum.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-4 py-3 text-left font-medium w-8">#</th>
+                    <th className="px-4 py-3 text-left font-medium">Imię i nazwisko</th>
+                    <th className="px-4 py-3 text-left font-medium">Liga</th>
+                    <th className="px-4 py-3 w-10"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {centerPlayers.map((cp: any, idx: number) => {
+                    const leagueName = centerPlayerLeagueMap[cp.id] ?? null
+                    const playerName = `${cp.first_name} ${cp.last_name}`.trim()
+                    return (
+                      <tr key={cp.id} className="border-b last:border-0 hover:bg-muted/30">
+                        <td className="px-4 py-3 text-muted-foreground">{idx + 1}</td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium">{playerName || "—"}</div>
+                          {cp.phone && <div className="text-xs text-muted-foreground">{cp.phone}</div>}
+                        </td>
+                        <td className="px-4 py-3">
+                          {leagueName
+                            ? <Badge variant="secondary" className="text-xs font-normal">{leagueName}</Badge>
+                            : <span className="text-xs text-muted-foreground">wolny</span>
+                          }
+                        </td>
+                        <td className="px-4 py-3">
                           <AssignCompetitionPlayerDialog
-                            profileId={cp.profile_id}
+                            centerPlayerId={cp.id}
                             playerName={playerName}
                             seasons={seasons.map((s: any) => ({
                               id: s.id,
@@ -334,16 +396,16 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
                             }))}
                             currentLeagueName={leagueName ?? undefined}
                           />
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          )}
-        </CardContent>
-      </Card>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
