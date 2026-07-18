@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
@@ -43,7 +43,7 @@ function GoogleIcon() {
   )
 }
 
-export default function RegisterPlayerPage() {
+function RegisterPlayerForm() {
   const t = useTranslations("auth.registerPlayer")
   const searchParams = useSearchParams()
   const joinCode = searchParams.get("join") ?? undefined
@@ -202,5 +202,13 @@ export default function RegisterPlayerPage() {
         </form>
       </Card>
     </div>
+  )
+}
+
+export default function RegisterPlayerPage() {
+  return (
+    <Suspense>
+      <RegisterPlayerForm />
+    </Suspense>
   )
 }
